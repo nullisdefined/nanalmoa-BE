@@ -1,4 +1,4 @@
-name: Deploy Swagger Docs
+name: Swagger API 문서 호스팅
 
 on:
   push:
@@ -11,18 +11,25 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Node.js 버전을 설정합니다.
+      - name: Node.js 버전 설정
         uses: actions/setup-node@v2
         with:
           node-version: '20'
 
-      - name: Install dependencies
+      - name: 의존성 설치
         run: npm ci
 
-      - name: Swagger API 문서를 생성합니다.
+      - name: Swagger API 문서 생성
         run: npm run generate-swagger
+        env:
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          NODE_ENV: production
 
-      - name: Swagger API 문서를 배포합니다.
+      - name: Swagger API 문서 호스팅
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

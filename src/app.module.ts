@@ -20,9 +20,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
       entities: [__dirname + '/**/*.entity.{js,ts}'],
-      synchronize: false,
+      synchronize: process.env.NODE_ENV === 'development',
       logging: process.env.NODE_ENV === 'development',
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
+      ssl: {
+        rejectUnauthorized: false,
+      },
     }),
     JwtModule.register({
       global: true,
