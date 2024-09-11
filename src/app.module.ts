@@ -5,6 +5,10 @@ import { ConfigModule } from '@nestjs/config';
 import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { SchedulesModule } from './modules/schedules/schedules.module';
+import { ShareModule } from './modules/share/share.module';
 
 @Module({
   imports: [
@@ -34,6 +38,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         expiresIn: process.env.JWT_ACCESS_EXPIRATION,
       },
     }),
+    AuthModule,
+    UsersModule,
+    SchedulesModule,
+    ShareModule,
   ],
   controllers: [AppController],
   providers: [AppService],
