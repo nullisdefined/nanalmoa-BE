@@ -1,69 +1,120 @@
-import { Controller, Post, Get } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Query,
+  Req,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 
-@ApiTags('auth')
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  @Post('signup')
+  @ApiOperation({ summary: '일반 회원가입' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', description: '사용자 이메일' },
+        password: { type: 'string', description: '사용자 비밀번호' },
+        name: { type: 'string', description: '사용자 이름' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: '회원가입 성공' })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  async signup(@Body() signupDto: any) {
+    // 회원가입 로직
+  }
 
-  @Post('login/kakao')
-  @ApiOperation({ summary: 'Kakao login' })
-  @ApiResponse({ status: 200, description: 'Kakao login successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  @ApiResponse({ status: 503, description: 'Service unavailable' })
-  @ApiResponse({ status: 504, description: 'Gateway timeout' })
-  kakaoLogin() {}
+  @Post('login')
+  @ApiOperation({ summary: '일반 로그인' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', description: '사용자 이메일' },
+        password: { type: 'string', description: '사용자 비밀번호' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: '로그인 성공' })
+  @ApiResponse({ status: 401, description: '인증 실패' })
+  async login(@Body() loginDto: any) {
+    // 로그인 로직
+  }
 
-  @Get('kakao/callback')
-  @ApiOperation({ summary: 'Kakao callback' })
-  @ApiResponse({ status: 200, description: 'Kakao callback successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  @ApiResponse({ status: 503, description: 'Service unavailable' })
-  @ApiResponse({ status: 504, description: 'Gateway timeout' })
-  kakaoCallback() {}
-
-  @Post('login/naver')
-  @ApiOperation({ summary: 'Naver login' })
-  @ApiResponse({ status: 200, description: 'Naver login successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  @ApiResponse({ status: 503, description: 'Service unavailable' })
-  @ApiResponse({ status: 504, description: 'Gateway timeout' })
-  naverLogin() {}
+  @Get('naver')
+  @UseGuards(AuthGuard('naver'))
+  @ApiOperation({ summary: '네이버 로그인' })
+  @ApiResponse({
+    status: 302,
+    description: '네이버 로그인 페이지로 리다이렉트',
+  })
+  async naverLogin() {
+    // 네이버 로그인 로직
+  }
 
   @Get('naver/callback')
-  @ApiOperation({ summary: 'Naver callback' })
-  @ApiResponse({ status: 200, description: 'Naver callback successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  @ApiResponse({ status: 503, description: 'Service unavailable' })
-  @ApiResponse({ status: 504, description: 'Gateway timeout' })
-  naverCallback() {}
+  @UseGuards(AuthGuard('naver'))
+  @ApiOperation({ summary: '네이버 로그인 콜백' })
+  @ApiResponse({ status: 200, description: '네이버 로그인 성공' })
+  @ApiResponse({ status: 401, description: '인증 실패' })
+  async naverLoginCallback(@Req() req) {
+    // 네이버 로그인 콜백 처리 로직
+  }
 
-  @Post('logout')
-  @ApiOperation({ summary: 'Logout' })
-  @ApiResponse({ status: 200, description: 'Logout successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  @ApiResponse({ status: 503, description: 'Service unavailable' })
-  @ApiResponse({ status: 504, description: 'Gateway timeout' })
-  logout() {}
+  @Get('kakao')
+  @UseGuards(AuthGuard('kakao'))
+  @ApiOperation({ summary: '카카오 로그인' })
+  @ApiResponse({
+    status: 302,
+    description: '카카오 로그인 페이지로 리다이렉트',
+  })
+  async kakaoLogin() {
+    // 카카오 로그인 로직
+  }
+
+  @Get('kakao/callback')
+  @UseGuards(AuthGuard('kakao'))
+  @ApiOperation({ summary: '카카오 로그인 콜백' })
+  @ApiResponse({ status: 200, description: '카카오 로그인 성공' })
+  @ApiResponse({ status: 401, description: '인증 실패' })
+  async kakaoLoginCallback(@Req() req) {
+    // 카카오 로그인 콜백 처리 로직
+  }
 
   @Post('refresh')
-  @ApiOperation({ summary: 'Refresh' })
-  @ApiResponse({ status: 200, description: 'Refresh successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  @ApiResponse({ status: 503, description: 'Service unavailable' })
-  @ApiResponse({ status: 504, description: 'Gateway timeout' })
-  refresh() {}
+  @ApiOperation({ summary: '토큰 갱신' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        refreshToken: { type: 'string', description: '리프레시 토큰' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: '토큰 갱신 성공' })
+  @ApiResponse({ status: 401, description: '인증 실패' })
+  async refreshToken(@Body() refreshTokenDto: any) {
+    // 토큰 갱신 로직
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: '로그아웃' })
+  @ApiResponse({ status: 200, description: '로그아웃 성공' })
+  async logout(@Req() req) {
+    // 로그아웃 로직
+  }
 }
