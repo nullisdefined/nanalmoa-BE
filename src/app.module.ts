@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { ShareModule } from './modules/share/share.module';
+import { GroupModule } from './modules/group/group.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ShareModule } from './modules/share/share.module';
     UsersModule,
     SchedulesModule,
     ShareModule,
+    GroupModule,
   ],
   controllers: [AppController],
   providers: [AppService],
