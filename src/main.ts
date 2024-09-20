@@ -7,6 +7,7 @@ import fs from 'fs';
 declare const module: any;
 
 async function bootstrap() {
+  process.env.TZ = 'Asia/Seoul';
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   app.setGlobalPrefix('api');
