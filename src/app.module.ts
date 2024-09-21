@@ -36,9 +36,9 @@ import { User } from './entities/user.entity';
     }),
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_ACCESS_SECRET,
+      secret: process.env.JWT_SECRET,
       signOptions: {
-        expiresIn: process.env.JWT_ACCESS_EXPIRATION,
+        expiresIn: process.env.JWT_EXPIRATION,
       },
     }),
     AuthModule,

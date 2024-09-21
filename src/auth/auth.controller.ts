@@ -6,6 +6,7 @@ import {
   UseGuards,
   Query,
   Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,10 +16,15 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { AuthService } from './auth.service';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { AuthProvider } from 'src/entities/auth.entity';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
   @Post('signup')
   @ApiOperation({ summary: '일반 회원가입' })
   @ApiBody({
@@ -81,33 +87,124 @@ export class AuthController {
     status: 302,
     description: '카카오 로그인 페이지로 리다이렉트',
   })
-  async kakaoLogin() {
-    // 카카오 로그인 로직
-  }
+  async kakaoLogin() {}
 
   @Get('kakao/callback')
-  @UseGuards(AuthGuard('kakao'))
   @ApiOperation({ summary: '카카오 로그인 콜백' })
-  @ApiResponse({ status: 200, description: '카카오 로그인 성공' })
-  @ApiResponse({ status: 401, description: '인증 실패' })
-  async kakaoLoginCallback(@Req() req) {
-    // 카카오 로그인 콜백 처리 로직
-  }
-
-  @Post('refresh')
-  @ApiOperation({ summary: '토큰 갱신' })
-  @ApiBody({
+  @ApiQuery({
+    name: 'code',
+    required: true,
+    type: String,
+    description: '카카오 인가 코드',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '카카오 로그인 인증 성공',
     schema: {
       type: 'object',
       properties: {
-        refreshToken: { type: 'string', description: '리프레시 토큰' },
+        accessToken: {
+          type: 'string',
+          description: '발급된 액세스 토큰',
+          example:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+        },
+        refreshToken: {
+          type: 'string',
+          description: '발급된 리프레시 토큰',
+          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
+        },
+        socialProvider: {
+          type: 'string',
+          description: '소셜 로그인 제공자',
+          example: 'kakao',
+        },
+        user: {
+          type: 'object',
+          properties: {
+            id: {
+              example: 1,
+            },
+            email: {
+              example: 'user@example.com',
+            },
+            name: {
+              example: '홍길동',
+            },
+            profileImage: {
+              example: 'https://example.com/profile.jpg',
+            },
+          },
+        },
       },
     },
   })
-  @ApiResponse({ status: 200, description: '토큰 갱신 성공' })
   @ApiResponse({ status: 401, description: '인증 실패' })
-  async refreshToken(@Body() refreshTokenDto: any) {
-    // 토큰 갱신 로직
+  async kakaoLoginCallback(@Query('code') code: string) {
+    try {
+      if (!code) {
+        throw new UnauthorizedException('인가 코드가 없습니다.');
+      }
+
+      const kakaoTokens = await this.authService.getKakaoToken(code);
+      const kakaoUser = await this.authService.getKakaoUserInfo(
+        kakaoTokens.access_token,
+      );
+      const user = await this.authService.findOrCreateUser(
+        kakaoUser,
+        kakaoTokens.refresh_token,
+      );
+      const accessToken = this.authService.generateAccessToken(user);
+
+      return {
+        accessToken,
+        refreshToken: kakaoTokens.refresh_token,
+        socialProvider: AuthProvider.KAKAO,
+        user: {
+          id: user.user_id,
+          email: user.email,
+          name: user.name,
+          profileImage: user.profile_image,
+        },
+      };
+    } catch (error) {
+      console.error('Kakao login error:', error);
+      throw new UnauthorizedException('카카오 로그인 실패');
+    }
+  }
+
+  @Post('refresh')
+  @ApiOperation({ summary: '액세스 토큰 갱신' })
+  @ApiBody({ type: RefreshTokenDto, description: '리프레시 토큰 정보' })
+  @ApiResponse({
+    status: 200,
+    description: '토큰 갱신 성공, 리프레시 토큰은 옵셔널',
+    schema: {
+      type: 'object',
+      properties: {
+        accessToken: {
+          example:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+        },
+        refreshToken: {
+          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: '인증 실패' })
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    try {
+      const newAccessToken = await this.authService.refreshAccessToken(
+        refreshTokenDto.userId,
+        refreshTokenDto.refreshToken,
+        refreshTokenDto.socialProvider,
+      );
+      return { ...newAccessToken };
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      throw new UnauthorizedException('액세스 토큰 갱신 실패');
+    }
   }
 
   @Post('logout')
