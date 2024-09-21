@@ -19,10 +19,10 @@ export class User {
   @Column({ nullable: true })
   profile_image: string;
 
-  @CreateDateColumn({ nullable: true })
+  @CreateDateColumn()
   created_at: Date;
 
-  @UpdateDateColumn({ nullable: true })
+  @UpdateDateColumn()
   updated_at: Date;
 
   @Column()

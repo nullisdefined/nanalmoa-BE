@@ -1,9 +1,11 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
 
@@ -20,16 +22,22 @@ export class Auth {
   @Column()
   user_id: number;
 
-  @Column({ nullable: true, type: 'enum', enum: AuthProvider })
-  auth_provider: AuthProvider | null;
+  @Column({ type: 'enum', enum: AuthProvider })
+  auth_provider: AuthProvider;
 
   @Column()
   oauth_id: string;
 
-  @Column()
+  @Column({ nullable: true })
   refresh_token: string;
 
-  @ManyToOne(() => User, (user) => user.auths)
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
+
+  @ManyToOne(() => User, (user) => user.auths, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 }
