@@ -13,10 +13,10 @@ export class User {
   @PrimaryGeneratedColumn()
   user_id: number;
 
-  @Column({ nullable: true })
+  @Column({ length: 20, nullable: true })
   name: string;
 
-  @Column({ nullable: true })
+  @Column({ length: 255, nullable: true })
   profile_image: string;
 
   @CreateDateColumn()
@@ -25,7 +25,7 @@ export class User {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @Column()
+  @Column({ length: 50 })
   email: string;
 
   @Column({ default: false })

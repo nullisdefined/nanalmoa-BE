@@ -25,10 +25,10 @@ export class Auth {
   @Column({ type: 'enum', enum: AuthProvider })
   auth_provider: AuthProvider;
 
-  @Column()
+  @Column({ length: 255 })
   oauth_id: string;
 
-  @Column({ nullable: true })
+  @Column({ length: 255, nullable: true })
   refresh_token: string;
 
   @CreateDateColumn()
