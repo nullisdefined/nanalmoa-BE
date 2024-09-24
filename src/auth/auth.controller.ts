@@ -7,7 +7,6 @@ import {
   Query,
   Req,
   UnauthorizedException,
-  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,7 +15,6 @@ import {
   ApiBody,
   ApiQuery,
 } from '@nestjs/swagger';
-import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -131,7 +129,18 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: '인증 실패' })
+  @ApiResponse({
+    status: 401,
+    description: '인증 실패',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 401 },
+        message: { type: 'string', example: '네이버 로그인 실패' },
+        error: { type: 'string', example: 'Unauthorized' },
+      },
+    },
+  })
   async naverLoginCallback(@Query('code') code: string) {
     try {
       if (!code) {
@@ -226,7 +235,18 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: '인증 실패' })
+  @ApiResponse({
+    status: 401,
+    description: '인증 실패',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 401 },
+        message: { type: 'string', example: '카카오 로그인 실패' },
+        error: { type: 'string', example: 'Unauthorized' },
+      },
+    },
+  })
   async kakaoLoginCallback(@Query('code') code: string) {
     try {
       if (!code) {
@@ -281,7 +301,18 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: '인증 실패' })
+  @ApiResponse({
+    status: 401,
+    description: '인증 실패',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 401 },
+        message: { type: 'string', example: '액세스 토큰 갱신 실패' },
+        error: { type: 'string', example: 'Unauthorized' },
+      },
+    },
+  })
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     try {
       const newAccessToken = await this.authService.refreshAccessToken(
