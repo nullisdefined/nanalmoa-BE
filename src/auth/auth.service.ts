@@ -18,6 +18,53 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  private stateStore = new Map<string, number>();
+
+  async getNaverToken(
+    code: string,
+  ): Promise<{ access_token: string; refresh_token: string }> {
+    const tokenUrl = 'https://nid.naver.com/oauth2.0/token';
+    const params = {
+      grant_type: 'authorization_code',
+      client_id: this.configService.get('NAVER_CLIENT_ID'),
+      client_secret: this.configService.get('NAVER_CLIENT_SECRET'),
+      redirect_uri: this.configService.get('NAVER_REDIRECT_URI'),
+      code,
+    };
+
+    try {
+      const response = await axios.post(tokenUrl, null, { params });
+      // console.log('*** response.data: ', response.data);
+      return {
+        access_token: response.data.access_token,
+        refresh_token: response.data.refresh_token,
+      };
+    } catch (error) {
+      console.error(
+        'Error getting Naver token:',
+        error.response?.data || error.message,
+      );
+      throw new UnauthorizedException('네이버 토큰 획득 실패');
+    }
+  }
+
+  async getNaverUserInfo(accessToken: string): Promise<any> {
+    const userInfoUrl = 'https://openapi.naver.com/v1/nid/me';
+    console.log('*** accessToken: ', accessToken);
+    try {
+      const response = await axios.get(userInfoUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return response.data.response;
+    } catch (error) {
+      console.error(
+        'Error getting Naver user info:',
+        error.response?.data || error.message,
+      );
+      throw new UnauthorizedException('네이버 사용자 정보 획득 실패');
+    }
+  }
+
   async getKakaoToken(
     code: string,
   ): Promise<{ access_token: string; refresh_token: string }> {
@@ -65,43 +112,57 @@ export class AuthService {
   }
 
   async findOrCreateUser(
-    kakaoUser: any,
-    kakaoRefreshToken: string,
+    socialUser: any,
+    refreshToken: string,
+    provider: AuthProvider,
   ): Promise<User> {
-    const { id: oauthId, kakao_account, properties } = kakaoUser;
+    let oauthId, name, email, profileImage;
+
+    if (provider === AuthProvider.KAKAO) {
+      oauthId = socialUser.id.toString();
+      name = socialUser.properties?.nickname;
+      email = socialUser.kakao_account?.email;
+      profileImage = socialUser.properties?.profile_image;
+    } else if (provider === AuthProvider.NAVER) {
+      oauthId = socialUser.id;
+      name = socialUser.name;
+      email = socialUser.email;
+      profileImage = socialUser.profile_image;
+    } else {
+      throw new UnauthorizedException('지원하지 않는 소셜 프로바이더입니다.');
+    }
 
     let userAuth = await this.authRepository.findOne({
       where: {
-        oauth_id: oauthId.toString(),
-        auth_provider: AuthProvider.KAKAO,
+        oauth_id: oauthId,
+        auth_provider: provider,
       },
       relations: ['user'],
     });
 
     if (userAuth) {
       // 사용자 정보 업데이트
-      userAuth.user.name = properties?.nickname || userAuth.user.name;
-      userAuth.user.profile_image =
-        properties?.profile_image || userAuth.user.profile_image;
-      userAuth.user.email = kakao_account?.email || userAuth.user.email;
-      userAuth.refresh_token = kakaoRefreshToken;
+      userAuth.user.name = name || userAuth.user.name;
+      userAuth.user.profile_image = profileImage || userAuth.user.profile_image;
+      userAuth.user.email = email || userAuth.user.email;
+      userAuth.refresh_token = refreshToken;
       await this.userRepository.save(userAuth.user);
       await this.authRepository.save(userAuth);
       return userAuth.user;
     } else {
       // 새 사용자 등록
       const newUser = this.userRepository.create({
-        name: properties?.nickname,
-        profile_image: properties?.profile_image,
-        email: kakao_account?.email,
+        name,
+        profile_image: profileImage,
+        email,
       });
       await this.userRepository.save(newUser);
 
       const newUserAuth = this.authRepository.create({
         user: newUser,
-        oauth_id: oauthId.toString(),
-        auth_provider: AuthProvider.KAKAO,
-        refresh_token: kakaoRefreshToken,
+        oauth_id: oauthId,
+        auth_provider: provider,
+        refresh_token: refreshToken,
       });
       await this.authRepository.save(newUserAuth);
 
@@ -140,6 +201,32 @@ export class AuthService {
     }
   }
 
+  async refreshNaverToken(
+    refreshToken: string,
+  ): Promise<{ access_token: string; refresh_token?: string }> {
+    const tokenUrl = 'https://nid.naver.com/oauth2.0/token';
+    const params = {
+      grant_type: 'refresh_token',
+      client_id: this.configService.get('NAVER_CLIENT_ID'),
+      client_secret: this.configService.get('NAVER_CLIENT_SECRET'),
+      refresh_token: refreshToken,
+    };
+
+    try {
+      const response = await axios.post(tokenUrl, null, { params });
+      return {
+        access_token: response.data.access_token,
+        refresh_token: response.data.refresh_token,
+      };
+    } catch (error) {
+      console.error(
+        'Error refreshing Naver token:',
+        error.response?.data || error.message,
+      );
+      throw new UnauthorizedException('네이버 토큰 갱신 실패');
+    }
+  }
+
   async refreshAccessToken(
     userId: number,
     refreshToken: string,
@@ -165,7 +252,7 @@ export class AuthService {
           socialTokens = await this.refreshKakaoToken(refreshToken);
           break;
         case AuthProvider.NAVER:
-          // 네이버 토큰 갱신 로직
+          socialTokens = await this.refreshNaverToken(refreshToken);
           break;
         default:
           throw new UnauthorizedException(
@@ -173,10 +260,8 @@ export class AuthService {
           );
       }
 
-      // 우리 서비스의 액세스 토큰 생성
       const accessToken = this.generateAccessToken(auth.user);
 
-      // 새 리프레시 토큰을 발급한 경우
       if (socialTokens.refresh_token) {
         auth.refresh_token = socialTokens.refresh_token;
         await this.authRepository.save(auth);

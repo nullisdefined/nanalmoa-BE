@@ -8,10 +8,15 @@ import { KakaoStrategy } from './strategies/kakao.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Auth } from 'src/entities/auth.entity';
 import { User } from 'src/entities/user.entity';
+import { NaverStrategy } from './strategies/naver.strategy';
 
 @Module({
-  imports: [PassportModule, TypeOrmModule.forFeature([Auth, User])],
+  imports: [
+    PassportModule,
+    TypeOrmModule.forFeature([Auth, User]),
+    PassportModule.register({ session: true }),
+  ],
   controllers: [AuthController],
-  providers: [AuthService, KakaoStrategy],
+  providers: [AuthService, KakaoStrategy, NaverStrategy],
 })
 export class AuthModule {}

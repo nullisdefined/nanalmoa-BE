@@ -7,6 +7,7 @@ import {
   Query,
   Req,
   UnauthorizedException,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,15 +16,20 @@ import {
   ApiBody,
   ApiQuery,
 } from '@nestjs/swagger';
+import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthProvider } from 'src/entities/auth.entity';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('signup')
   @ApiOperation({ summary: '일반 회원가입' })
@@ -67,17 +73,98 @@ export class AuthController {
     status: 302,
     description: '네이버 로그인 페이지로 리다이렉트',
   })
-  async naverLogin() {
-    // 네이버 로그인 로직
-  }
+  async naverLogin() {}
 
   @Get('naver/callback')
-  @UseGuards(AuthGuard('naver'))
   @ApiOperation({ summary: '네이버 로그인 콜백' })
-  @ApiResponse({ status: 200, description: '네이버 로그인 성공' })
+  @ApiQuery({
+    name: 'code',
+    required: true,
+    type: String,
+    description: '네이버 인가 코드',
+  })
+  @ApiQuery({
+    name: 'state',
+    required: true,
+    type: String,
+    description: '상태 값',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '네이버 로그인 인증 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        accessToken: {
+          type: 'string',
+          description: '발급된 액세스 토큰',
+          example:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+        },
+        refreshToken: {
+          type: 'string',
+          description: '발급된 리프레시 토큰',
+          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
+        },
+        socialProvider: {
+          type: 'string',
+          description: '소셜 프로바이더',
+          example: 'naver',
+        },
+        user: {
+          type: 'object',
+          properties: {
+            id: {
+              example: 1,
+            },
+            email: {
+              example: 'user@example.com',
+            },
+            name: {
+              example: '홍길동',
+            },
+            profileImage: {
+              example: 'https://example.com/profile.jpg',
+            },
+          },
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: '인증 실패' })
-  async naverLoginCallback(@Req() req) {
-    // 네이버 로그인 콜백 처리 로직
+  async naverLoginCallback(@Query('code') code: string) {
+    try {
+      if (!code) {
+        throw new UnauthorizedException('인가 코드가 없습니다.');
+      }
+
+      const naverTokens = await this.authService.getNaverToken(code);
+      const naverUser = await this.authService.getNaverUserInfo(
+        naverTokens.access_token,
+      );
+
+      const user = await this.authService.findOrCreateUser(
+        naverUser,
+        naverTokens.refresh_token,
+        AuthProvider.NAVER,
+      );
+      const accessToken = this.authService.generateAccessToken(user);
+
+      return {
+        accessToken,
+        refreshToken: naverTokens.refresh_token,
+        socialProvider: AuthProvider.NAVER,
+        user: {
+          id: user.user_id,
+          email: user.email,
+          name: user.name,
+          profileImage: user.profile_image,
+        },
+      };
+    } catch (error) {
+      console.error('Naver login error:', error);
+      throw new UnauthorizedException('네이버 로그인 실패');
+    }
   }
 
   @Get('kakao')
@@ -116,7 +203,7 @@ export class AuthController {
         },
         socialProvider: {
           type: 'string',
-          description: '소셜 로그인 제공자',
+          description: '소셜 프로바이더',
           example: 'kakao',
         },
         user: {
@@ -150,9 +237,11 @@ export class AuthController {
       const kakaoUser = await this.authService.getKakaoUserInfo(
         kakaoTokens.access_token,
       );
+
       const user = await this.authService.findOrCreateUser(
         kakaoUser,
         kakaoTokens.refresh_token,
+        AuthProvider.KAKAO,
       );
       const accessToken = this.authService.generateAccessToken(user);
 
