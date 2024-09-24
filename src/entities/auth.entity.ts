@@ -17,25 +17,25 @@ export enum AuthProvider {
 @Entity('auth')
 export class Auth {
   @PrimaryGeneratedColumn()
-  auth_id: number;
+  authId: number;
 
-  @Column()
-  user_id: number;
+  @Column({ name: 'user_id' })
+  userId: number;
 
-  @Column({ type: 'enum', enum: AuthProvider })
-  auth_provider: AuthProvider;
+  @Column({ type: 'enum', enum: AuthProvider, name: 'auth_provider' })
+  authProvider: AuthProvider;
 
-  @Column({ length: 255 })
-  oauth_id: string;
+  @Column({ length: 255, name: 'oauth_id' })
+  oauthId: string;
 
-  @Column({ length: 255, nullable: true })
-  refresh_token: string;
+  @Column({ length: 255, nullable: true, name: 'refresh_token' })
+  refreshToken: string;
 
-  @CreateDateColumn()
-  created_at: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
 
-  @UpdateDateColumn()
-  updated_at: Date;
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
   @ManyToOne(() => User, (user) => user.auths, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

@@ -134,8 +134,8 @@ export class AuthService {
 
     let userAuth = await this.authRepository.findOne({
       where: {
-        oauth_id: oauthId,
-        auth_provider: provider,
+        oauthId: oauthId,
+        authProvider: provider,
       },
       relations: ['user'],
     });
@@ -143,9 +143,9 @@ export class AuthService {
     if (userAuth) {
       // 사용자 정보 업데이트
       userAuth.user.name = name || userAuth.user.name;
-      userAuth.user.profile_image = profileImage || userAuth.user.profile_image;
+      userAuth.user.profileImage = profileImage || userAuth.user.profileImage;
       userAuth.user.email = email || userAuth.user.email;
-      userAuth.refresh_token = refreshToken;
+      userAuth.refreshToken = refreshToken;
       await this.userRepository.save(userAuth.user);
       await this.authRepository.save(userAuth);
       return userAuth.user;
@@ -153,16 +153,16 @@ export class AuthService {
       // 새 사용자 등록
       const newUser = this.userRepository.create({
         name,
-        profile_image: profileImage,
+        profileImage: profileImage,
         email,
       });
       await this.userRepository.save(newUser);
 
       const newUserAuth = this.authRepository.create({
         user: newUser,
-        oauth_id: oauthId,
-        auth_provider: provider,
-        refresh_token: refreshToken,
+        oauthId: oauthId,
+        authProvider: provider,
+        refreshToken: refreshToken,
       });
       await this.authRepository.save(newUserAuth);
 
@@ -171,7 +171,7 @@ export class AuthService {
   }
 
   generateAccessToken(user: User): string {
-    const payload = { sub: user.user_id, email: user.email, name: user.name };
+    const payload = { sub: user.userId, email: user.email, name: user.name };
     return this.jwtService.sign(payload);
   }
 
@@ -234,9 +234,9 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken?: string }> {
     const auth = await this.authRepository.findOne({
       where: {
-        user_id: userId,
-        refresh_token: refreshToken,
-        auth_provider: socialProvider,
+        userId: userId,
+        refreshToken: refreshToken,
+        authProvider: socialProvider,
       },
       relations: ['user'],
     });
@@ -263,7 +263,7 @@ export class AuthService {
       const accessToken = this.generateAccessToken(auth.user);
 
       if (socialTokens.refresh_token) {
-        auth.refresh_token = socialTokens.refresh_token;
+        auth.refreshToken = socialTokens.refresh_token;
         await this.authRepository.save(auth);
       }
 
@@ -273,7 +273,7 @@ export class AuthService {
       };
     } catch (error) {
       console.error('Token refresh error:', error);
-      await this.authRepository.update(auth.auth_id, { refresh_token: null });
+      await this.authRepository.update(auth.authId, { refreshToken: null });
       throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
     }
   }

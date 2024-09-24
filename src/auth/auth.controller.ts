@@ -155,10 +155,10 @@ export class AuthController {
         refreshToken: naverTokens.refresh_token,
         socialProvider: AuthProvider.NAVER,
         user: {
-          id: user.user_id,
+          id: user.userId,
           email: user.email,
           name: user.name,
-          profileImage: user.profile_image,
+          profileImage: user.profileImage,
         },
       };
     } catch (error) {
@@ -250,10 +250,10 @@ export class AuthController {
         refreshToken: kakaoTokens.refresh_token,
         socialProvider: AuthProvider.KAKAO,
         user: {
-          id: user.user_id,
+          id: user.userId,
           email: user.email,
           name: user.name,
-          profileImage: user.profile_image,
+          profileImage: user.profileImage,
         },
       };
     } catch (error) {
