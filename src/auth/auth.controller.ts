@@ -171,7 +171,7 @@ export class AuthController {
         },
       };
     } catch (error) {
-      console.error('Naver login error:', error);
+      // console.error('Naver login error:', error);
       throw new UnauthorizedException('네이버 로그인 실패');
     }
   }
@@ -277,7 +277,7 @@ export class AuthController {
         },
       };
     } catch (error) {
-      console.error('Kakao login error:', error);
+      // console.error('Kakao login error:', error);
       throw new UnauthorizedException('카카오 로그인 실패');
     }
   }
@@ -322,7 +322,7 @@ export class AuthController {
       );
       return { ...newAccessToken };
     } catch (error) {
-      console.error('Token refresh error:', error);
+      // console.error('Token refresh error:', error);
       throw new UnauthorizedException('액세스 토큰 갱신 실패');
     }
   }

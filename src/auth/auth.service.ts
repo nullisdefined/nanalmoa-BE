@@ -40,27 +40,27 @@ export class AuthService {
         refresh_token: response.data.refresh_token,
       };
     } catch (error) {
-      console.error(
-        'Error getting Naver token:',
-        error.response?.data || error.message,
-      );
+      // console.error(
+      //   'Error getting Naver token:',
+      //   error.response?.data || error.message,
+      // );
       throw new UnauthorizedException('네이버 토큰 획득 실패');
     }
   }
 
   async getNaverUserInfo(accessToken: string): Promise<any> {
     const userInfoUrl = 'https://openapi.naver.com/v1/nid/me';
-    console.log('*** accessToken: ', accessToken);
+    // console.log('*** accessToken: ', accessToken);
     try {
       const response = await axios.get(userInfoUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       return response.data.response;
     } catch (error) {
-      console.error(
-        'Error getting Naver user info:',
-        error.response?.data || error.message,
-      );
+      // console.error(
+      //   'Error getting Naver user info:',
+      //   error.response?.data || error.message,
+      // );
       throw new UnauthorizedException('네이버 사용자 정보 획득 실패');
     }
   }
@@ -86,11 +86,11 @@ export class AuthService {
         refresh_token: response.data.refresh_token,
       };
     } catch (error) {
-      console.error(
-        'Error getting Kakao token:',
-        error.response?.data || error.message,
-      );
-      console.error('Error details:', error);
+      // console.error(
+      //   'Error getting Kakao token:',
+      //   error.response?.data || error.message,
+      // );
+      // console.error('Error details:', error);
       throw new UnauthorizedException('카카오 토큰 획득 실패');
     }
   }
@@ -103,10 +103,10 @@ export class AuthService {
       });
       return response.data;
     } catch (error) {
-      console.error(
-        'Error getting Kakao user info:',
-        error.response?.data || error.message,
-      );
+      // console.error(
+      //   'Error getting Kakao user info:',
+      //   error.response?.data || error.message,
+      // );
       throw new UnauthorizedException('카카오 사용자 정보 획득 실패');
     }
   }
@@ -193,10 +193,10 @@ export class AuthService {
         refresh_token: response.data.refresh_token, // 새 리프레시 토큰 발급
       };
     } catch (error) {
-      console.error(
-        'Error refreshing Kakao token:',
-        error.response?.data || error.message,
-      );
+      // console.error(
+      //   'Error refreshing Kakao token:',
+      //   error.response?.data || error.message,
+      // );
       throw new UnauthorizedException('카카오 토큰 갱신 실패');
     }
   }
@@ -219,10 +219,10 @@ export class AuthService {
         refresh_token: response.data.refresh_token,
       };
     } catch (error) {
-      console.error(
-        'Error refreshing Naver token:',
-        error.response?.data || error.message,
-      );
+      // console.error(
+      //   'Error refreshing Naver token:',
+      //   error.response?.data || error.message,
+      // );
       throw new UnauthorizedException('네이버 토큰 갱신 실패');
     }
   }
@@ -272,7 +272,7 @@ export class AuthService {
         refreshToken: socialTokens.refresh_token,
       };
     } catch (error) {
-      console.error('Token refresh error:', error);
+      // console.error('Token refresh error:', error);
       await this.authRepository.update(auth.authId, { refreshToken: null });
       throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
     }
