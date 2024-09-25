@@ -21,7 +21,7 @@ import {
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { SchedulesService } from './schedules.service';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
-import { ScheduleResponseDto } from './dto/response-schedule.dto';
+import { ResponseScheduleDto } from './dto/response-schedule.dto';
 import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
@@ -43,12 +43,12 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
-    type: [ScheduleResponseDto],
+    type: [ResponseScheduleDto],
   })
   async getSchedulesByDateRange(
     @Query('userId') userId: number,
     @Query() dateRange: DateRangeDto,
-  ): Promise<ScheduleResponseDto[]> {
+  ): Promise<ResponseScheduleDto[]> {
     return this.schedulesService.findByDateRange(userId, dateRange);
   }
 
@@ -60,15 +60,15 @@ export class SchedulesController {
   @ApiResponse({
     status: 201,
     description: '일정이 성공적으로 생성됨',
-    type: ScheduleResponseDto,
+    type: ResponseScheduleDto,
   })
   @ApiResponse({ status: 400, description: '잘못된 입력' })
   @ApiResponse({ status: 401, description: '인증 실패' })
   async createSchedule(
     @Body() createScheduleDto: CreateScheduleDto,
-  ): Promise<ScheduleResponseDto> {
+  ): Promise<ResponseScheduleDto> {
     const schedule = await this.schedulesService.create(createScheduleDto);
-    return new ScheduleResponseDto(schedule);
+    return new ResponseScheduleDto(schedule);
   }
 
   @Patch(':id')
@@ -79,7 +79,7 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '일정이 성공적으로 업데이트됨',
-    type: ScheduleResponseDto,
+    type: ResponseScheduleDto,
   })
   @ApiResponse({ status: 400, description: '잘못된 입력' })
   @ApiResponse({ status: 401, description: '인증 실패' })
@@ -87,9 +87,9 @@ export class SchedulesController {
   async updateSchedule(
     @Param('id') id: number,
     @Body() updateScheduleDto: UpdateScheduleDto,
-  ): Promise<ScheduleResponseDto> {
+  ): Promise<ResponseScheduleDto> {
     const schedule = await this.schedulesService.update(id, updateScheduleDto);
-    return new ScheduleResponseDto(schedule);
+    return new ResponseScheduleDto(schedule);
   }
 
   @Delete(':id')
@@ -109,11 +109,11 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
-    type: [ScheduleResponseDto],
+    type: [ResponseScheduleDto],
   })
   async getSchedulesByWeek(
     @Query() weekQuery: WeekQueryDto,
-  ): Promise<ScheduleResponseDto[]> {
+  ): Promise<ResponseScheduleDto[]> {
     console.log('getSchedulesByWeek called with:', weekQuery);
     return this.schedulesService.findByWeek(weekQuery);
   }
@@ -123,11 +123,11 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
-    type: [ScheduleResponseDto],
+    type: [ResponseScheduleDto],
   })
   async getSchedulesByMonth(
     @Query() monthQuery: MonthQueryDto,
-  ): Promise<ScheduleResponseDto[]> {
+  ): Promise<ResponseScheduleDto[]> {
     console.log('getSchedulesByMonth called with:', monthQuery);
     return this.schedulesService.findByMonth(monthQuery);
   }
@@ -140,13 +140,13 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
-    type: ScheduleResponseDto,
+    type: ResponseScheduleDto,
   })
   @ApiResponse({ status: 401, description: '인증 실패' })
   @ApiResponse({ status: 404, description: '일정을 찾을 수 없음' })
-  async getScheduleById(@Param('id') id: number): Promise<ScheduleResponseDto> {
+  async getScheduleById(@Param('id') id: number): Promise<ResponseScheduleDto> {
     const schedule = await this.schedulesService.findOne(id);
-    return new ScheduleResponseDto(schedule);
+    return new ResponseScheduleDto(schedule);
   }
 
   @Get()
@@ -155,11 +155,11 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
-    type: [ScheduleResponseDto],
+    type: [ResponseScheduleDto],
   })
   async getAllSchedulesByUserId(
     @Query('userId') userId: number,
-  ): Promise<ScheduleResponseDto[]> {
+  ): Promise<ResponseScheduleDto[]> {
     return this.schedulesService.findAllByUserId(userId);
   }
 
@@ -189,7 +189,7 @@ export class SchedulesController {
   @ApiResponse({
     status: 201,
     description: '저장된 일정 정보',
-    type: [ScheduleResponseDto],
+    type: [ResponseScheduleDto],
   })
   async confirmSchedule(@Body() scheduleData: VoiceScheduleConfirmDto[]) {
     return await this.schedulesService.confirmAndSaveSchedule(scheduleData);

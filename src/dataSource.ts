@@ -20,9 +20,10 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
   entities: [Auth, User, Category, Schedule],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
   seeds: [CategorySeeder],
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl:
+    process.env.NODE_ENV === 'production'
+      ? { rejectUnauthorized: false }
+      : false,
   extra: {
     timezone: '+09:00',
   },
