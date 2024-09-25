@@ -29,7 +29,9 @@ import { User } from './entities/user.entity';
       synchronize: process.env.NODE_ENV === 'development',
       logging: process.env.NODE_ENV === 'development',
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
-      ssl: false,
+      ssl: {
+        rejectUnauthorized: false,
+      },
       extra: {
         timezone: '+09:00',
       },
