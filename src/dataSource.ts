@@ -27,6 +27,7 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
   extra: {
     timezone: '+09:00',
   },
+  synchronize: process.env.NODE_ENV === 'production' ? false : true,
 };
 
 export const dataSource = new DataSource(dataSourceOptions);
