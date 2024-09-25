@@ -31,7 +31,7 @@
     "db:migrate:revert": "cross-env NODE_ENV=development npm run typeorm migration:revert -- -d ./dataSource.ts",
     "db:create-migration": "cross-env NODE_ENV=development npm run typeorm migration:create -- ./src/migrations/",
     "db:generate-migration": "cross-env NODE_ENV=development npm run typeorm migration:generate -- ./src/migrations -d ./src/dataSource.ts",
-    "generate-swagger": "ts-node -r tsconfig-paths/register src/swagger.ts"
+    "generate-swagger": "cross-env NODE_ENV=development ts-node -r tsconfig-paths/register src/swagger.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.3",

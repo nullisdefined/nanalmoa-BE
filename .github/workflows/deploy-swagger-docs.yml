@@ -4,36 +4,27 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'swagger.json'
 
 permissions:
   contents: write
 
 jobs:
-  build-and-deploy:
+  deploy-swagger-ui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
-      - name: Node.js 버전 설정
-        uses: actions/setup-node@v2
+      - name: Swagger UI 생성
+        uses: Legion2/swagger-ui-action@v1
         with:
-          node-version: '20'
+          output: swagger-ui
+          spec-file: swagger.json
 
-      - name: 의존성 설치
-        run: npm ci
-
-      - name: Swagger API 문서 생성
-        run: npm run generate-swagger
-        env:
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_DATABASE: ${{ secrets.DB_DATABASE }}
-
-      - name: Swagger API 문서 호스팅
+      - name: Swagger UI 호스팅
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          publish_dir: swagger-ui
           publish_branch: gh-pages
