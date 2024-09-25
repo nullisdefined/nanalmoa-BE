@@ -9,10 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { GroupModule } from './modules/group/group.module';
-import { Auth } from './entities/auth.entity';
-import { User } from './entities/user.entity';
-import { Schedule } from './entities/schedule.entity';
-import { Category } from './entities/category.entity';
+import { dataSourceOptions } from './dataSource';
 
 @Module({
   imports: [
@@ -20,24 +17,7 @@ import { Category } from './entities/category.entity';
       isGlobal: true,
       envFilePath: `.${process.env.NODE_ENV}.env`,
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_DATABASE,
-      entities: [Auth, User, Schedule, Category],
-      synchronize: process.env.NODE_ENV === 'development',
-      logging: process.env.NODE_ENV === 'development',
-      migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
-      ssl: {
-        rejectUnauthorized: false,
-      },
-      extra: {
-        timezone: '+09:00',
-      },
-    }),
+    TypeOrmModule.forRoot(dataSourceOptions),
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,

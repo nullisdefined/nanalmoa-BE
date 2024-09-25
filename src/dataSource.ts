@@ -1,28 +1,31 @@
+import { DataSource, DataSourceOptions } from 'typeorm';
+import { SeederOptions } from 'typeorm-extension';
+import { config } from 'dotenv';
 import { resolve } from 'path';
-import { DataSource } from 'typeorm';
-import dotenv from 'dotenv';
+import { Auth } from './entities/auth.entity';
+import { User } from './entities/user.entity';
+import { Category } from './entities/category.entity';
+import { Schedule } from './entities/schedule.entity';
+import { CategorySeeder } from './database/seeds/category.seed';
 
-dotenv.config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
+config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
 
-const dataSource = new DataSource({
+export const dataSourceOptions: DataSourceOptions & SeederOptions = {
   type: 'postgres',
   host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT, 10),
+  port: parseInt(process.env.DB_PORT),
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  extra: {
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  },
-  entities: [__dirname + '/**/*.entity.{js,ts}'],
-  migrations: [resolve(__dirname, 'migrations/*.ts')],
-  synchronize: process.env.NODE_ENV === 'development',
-  logging: process.env.NODE_ENV === 'development',
+  entities: [Auth, User, Category, Schedule],
+  migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
+  seeds: [CategorySeeder],
   ssl: {
     rejectUnauthorized: false,
   },
-});
+  extra: {
+    timezone: '+09:00',
+  },
+};
 
-export default dataSource;
+export const dataSource = new DataSource(dataSourceOptions);
