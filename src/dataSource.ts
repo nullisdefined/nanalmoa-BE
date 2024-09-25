@@ -20,9 +20,12 @@ const dataSource = new DataSource({
   migrations: [resolve(__dirname, 'migrations/*.ts')],
   synchronize: process.env.NODE_ENV === 'development',
   logging: process.env.NODE_ENV === 'development',
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl:
+    process.env.NODE_ENV === 'production'
+      ? {
+          rejectUnauthorized: false,
+        }
+      : false,
 });
 
 export default dataSource;
