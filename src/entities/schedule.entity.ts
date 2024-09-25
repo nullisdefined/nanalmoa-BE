@@ -8,8 +8,8 @@ export class Schedule {
   @Column({ name: 'user_id' })
   userId: number;
 
-  @Column({ name: 'category_id' })
-  categoryId: number;
+  @Column({ name: 'category_id', default: 7 })
+  categoryId?: number;
 
   @Column({ name: 'start_date', type: 'timestamp' })
   startDate: Date;
@@ -17,8 +17,8 @@ export class Schedule {
   @Column({ name: 'end_date', type: 'timestamp' })
   endDate: Date;
 
-  @Column({ length: 255 })
-  title: string;
+  @Column({ length: 255, default: '새로운 일정' })
+  title?: string;
 
   @Column({ length: 255, default: '' })
   place?: string;

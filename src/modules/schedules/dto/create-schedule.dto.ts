@@ -16,11 +16,17 @@ export class CreateScheduleDto {
   @IsNumber()
   userId: number;
 
-  @ApiProperty({ description: '카테고리 ID', example: 2 })
-  @IsNotEmpty()
+  @ApiProperty({
+    description: '카테고리 ID',
+    example: 2,
+    default: 7,
+    required: false,
+  })
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  categoryId: number;
+  @Transform(({ value }) => value || 7) // 기본값 설정
+  categoryId?: number;
 
   @ApiProperty({
     description: '일정 시작 날짜',
@@ -44,13 +50,19 @@ export class CreateScheduleDto {
     description: '일정 제목',
     example: '마을 잔치',
     default: '새로운 이벤트',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Transform(({ value }) => value || '새로운 이벤트') // 기본값 설정
-  title: string;
+  title?: string;
 
-  @ApiProperty({ description: '장소', example: '노인정', default: '' })
+  @ApiProperty({
+    description: '장소',
+    example: '노인정',
+    default: '',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   @Transform(({ value }) => value || '') // 기본값 설정
@@ -67,13 +79,17 @@ export class CreateScheduleDto {
   @Transform(({ value }) => value || '') // 기본값 설정
   memo?: string;
 
-  @ApiProperty({ description: '그룹 일정 여부', default: false })
+  @ApiProperty({
+    description: '그룹 일정 여부',
+    default: false,
+    required: false,
+  })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => (value !== undefined ? value : false)) // 기본값 설정
   isGroupSchedule?: boolean;
 
-  @ApiProperty({ description: '종일 옵션', default: false })
+  @ApiProperty({ description: '종일 옵션', default: false, required: false })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => (value !== undefined ? value : false)) // 기본값 설정
