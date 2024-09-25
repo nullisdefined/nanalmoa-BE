@@ -48,7 +48,6 @@ export class SchedulesService {
 
     // 업데이트할 필드만 병합
     Object.assign(schedule, updateScheduleDto);
-
     const savedSchedule = await this.schedulesRepository.save(schedule);
     return new ScheduleResponseDto(savedSchedule);
   }
@@ -68,7 +67,7 @@ export class SchedulesService {
     });
     if (!schedule) {
       throw new NotFoundException(
-        `해당 id : ${id}를 가진 스케쥴을 찾을 수 없습니다. `,
+        `해당 "${id}를 가진 스케쥴을 찾을 수 없습니다." `,
       );
     }
     return new ScheduleResponseDto(schedule);
@@ -92,6 +91,7 @@ export class SchedulesService {
         '시작 날짜는 종료 날짜보다 늦을 수 없습니다.',
       );
     }
+
     const schedules = await this.schedulesRepository.find({
       where: {
         userId: userId,
@@ -103,34 +103,32 @@ export class SchedulesService {
     return schedules.map((schedule) => new ScheduleResponseDto(schedule));
   }
 
-  async findByMonth(monthQuery: MonthQueryDto): Promise<ScheduleResponseDto[]> {
-    console.log('findByMonth 호출 형식 :', monthQuery);
-
+  async findByMonth(
+    userId: number,
+    monthQuery: MonthQueryDto,
+  ): Promise<ScheduleResponseDto[]> {
     const startDate = new Date(monthQuery.year, monthQuery.month - 1, 1);
-    const endDate = new Date(monthQuery.year, monthQuery.month, 0);
-
-    console.log('Date range:', { startDate, endDate });
+    const endDate = new Date(monthQuery.year, monthQuery.month, 0); // 마지막 날짜
 
     const schedules = await this.schedulesRepository.find({
       where: {
-        userId: monthQuery.userId,
+        userId: userId,
         startDate: Between(startDate, endDate),
       },
       order: { startDate: 'ASC' },
     });
 
-    console.log('Schedules found:', schedules.length);
-
     return schedules.map((schedule) => new ScheduleResponseDto(schedule));
   }
 
-  async findByWeek(weekQuery: WeekQueryDto): Promise<ScheduleResponseDto[]> {
-    console.log('findByWeek called with:', weekQuery);
-
+  async findByWeek(
+    userId: number,
+    weekQuery: WeekQueryDto,
+  ): Promise<ScheduleResponseDto[]> {
     const date = new Date(weekQuery.date);
     date.setUTCHours(0, 0, 0, 0); // UTC 시간으로 설정
     const day = date.getDay();
-    const diff = date.getDate() - day; // 일요일을 기준으로 주의 시작일 계산
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // 월요일을 기준으로 주의 시작일 계산
 
     const startDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff),
@@ -147,17 +145,13 @@ export class SchedulesService {
       ),
     );
 
-    console.log('Date range:', { startDate, endDate });
-
     const schedules = await this.schedulesRepository.find({
       where: {
-        userId: weekQuery.userId,
+        userId: userId,
         startDate: Between(startDate, endDate),
       },
       order: { startDate: 'ASC' },
     });
-
-    console.log('Schedules found:', schedules.length);
 
     return schedules.map((schedule) => new ScheduleResponseDto(schedule));
   }

@@ -20,8 +20,8 @@ export class Schedule {
   @Column({ length: 255 })
   title: string;
 
-  @Column({ length: 255, default: '' })
-  place?: string;
+  @Column({ length: 255 })
+  place: string;
 
   @Column({ type: 'text', default: '' })
   memo?: string;
