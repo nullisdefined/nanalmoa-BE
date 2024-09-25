@@ -12,6 +12,7 @@ import { GroupModule } from './modules/group/group.module';
 import { Auth } from './entities/auth.entity';
 import { User } from './entities/user.entity';
 import { Schedule } from './entities/schedule.entity';
+import { Category } from './entities/category.entity';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { Schedule } from './entities/schedule.entity';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
-      entities: [Auth, User, Schedule],
+      entities: [Auth, User, Schedule, Category],
       synchronize: process.env.NODE_ENV === 'development',
       logging: process.env.NODE_ENV === 'development',
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
