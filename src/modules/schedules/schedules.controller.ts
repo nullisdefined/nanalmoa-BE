@@ -26,10 +26,7 @@ import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  VoiceScheduleConfirmDto,
-  VoiceScheduleUploadDto,
-} from './dto/voice-schedule.dto';
+import { VoiceScheduleUploadDto } from './dto/voice-schedule.dto';
 
 @ApiTags('Schedules')
 @Controller('schedules')
@@ -161,6 +158,17 @@ export class SchedulesController {
     return this.schedulesService.findAllByUserId(userId);
   }
 
+  @Get('return-zero/token')
+  @ApiOperation({ summary: '리턴제로 JWT 토큰 발급' })
+  @ApiResponse({
+    status: 200,
+    description: 'JWT 토큰 발급 성공',
+    type: String,
+  })
+  async getJwtToken(): Promise<string> {
+    return await this.schedulesService.getJwtToken();
+  }
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('audio'))
   @ApiOperation({ summary: '음성 파일 업로드 및 일정 추출' })
@@ -169,27 +177,18 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '추출된 일정 정보',
-    type: [VoiceScheduleConfirmDto],
+    //type: [VoiceScheduleConfirmDto],
   })
   async uploadVoiceSchedule(
     @UploadedFile() file: Express.Multer.File,
     @Body('currentDateTime') currentDateTime: string,
-  ) {
-    return await this.schedulesService.processVoiceSchedule(
-      file.buffer,
+  ): Promise<CreateScheduleDto[]> {
+    // TranscriptionService를 사용하여 음성 파일 전사 및 처리
+    const result = await this.schedulesService.transcribeAndFetchResultWithGpt(
+      file,
       currentDateTime,
     );
-  }
 
-  @Post('confirm')
-  @ApiOperation({ summary: '추출된 일정 확인 및 저장' })
-  @ApiBody({ type: [VoiceScheduleConfirmDto] })
-  @ApiResponse({
-    status: 201,
-    description: '저장된 일정 정보',
-    type: [ResponseScheduleDto],
-  })
-  async confirmSchedule(@Body() scheduleData: VoiceScheduleConfirmDto[]) {
-    return await this.schedulesService.confirmAndSaveSchedule(scheduleData);
+    return result;
   }
 }
