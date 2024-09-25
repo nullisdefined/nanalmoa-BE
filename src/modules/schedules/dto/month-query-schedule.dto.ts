@@ -3,6 +3,11 @@ import { IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class MonthQueryDto {
+  @ApiProperty({ description: '사용자 ID', example: 1 })
+  @IsInt()
+  @Type(() => Number)
+  userId: number;
+
   @ApiProperty({ description: '년도', example: 2024 })
   @IsInt()
   @Min(2000)

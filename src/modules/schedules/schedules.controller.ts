@@ -5,7 +5,6 @@ import {
   Delete,
   Param,
   Body,
-  UseGuards,
   Query,
   Patch,
   UseInterceptors,
@@ -19,7 +18,6 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { SchedulesService } from './schedules.service';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
@@ -35,7 +33,7 @@ import {
 
 @ApiTags('Schedules')
 @Controller('schedules')
-@UseGuards(AuthGuard('jwt'))
+//@UseGuards(AuthGuard('jwt'))
 export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
@@ -106,6 +104,34 @@ export class SchedulesController {
     await this.schedulesService.remove(id);
   }
 
+  @Get('week')
+  @ApiOperation({ summary: '특정 주의 일정 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '일정 조회 성공',
+    type: [ScheduleResponseDto],
+  })
+  async getSchedulesByWeek(
+    @Query() weekQuery: WeekQueryDto,
+  ): Promise<ScheduleResponseDto[]> {
+    console.log('getSchedulesByWeek called with:', weekQuery);
+    return this.schedulesService.findByWeek(weekQuery);
+  }
+
+  @Get('month')
+  @ApiOperation({ summary: '특정 월의 일정 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '일정 조회 성공',
+    type: [ScheduleResponseDto],
+  })
+  async getSchedulesByMonth(
+    @Query() monthQuery: MonthQueryDto,
+  ): Promise<ScheduleResponseDto[]> {
+    console.log('getSchedulesByMonth called with:', monthQuery);
+    return this.schedulesService.findByMonth(monthQuery);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: '일정 조회',
@@ -137,35 +163,6 @@ export class SchedulesController {
     return this.schedulesService.findAllByUserId(userId);
   }
 
-  @Get('month')
-  @ApiOperation({ summary: '특정 월의 일정 조회' })
-  @ApiQuery({ name: 'userId', required: true, type: Number })
-  @ApiResponse({
-    status: 200,
-    description: '일정 조회 성공',
-    type: [ScheduleResponseDto],
-  })
-  async getSchedulesByMonth(
-    @Query('userId') userId: number,
-    @Query() monthQuery: MonthQueryDto,
-  ): Promise<ScheduleResponseDto[]> {
-    return this.schedulesService.findByMonth(userId, monthQuery);
-  }
-
-  @Get('week')
-  @ApiOperation({ summary: '주 단위 일정 조회' })
-  @ApiQuery({ name: 'userId', required: true, type: Number })
-  @ApiResponse({
-    status: 200,
-    description: '일정 조회 성공',
-    type: [ScheduleResponseDto],
-  })
-  async getSchedulesByWeek(
-    @Query('userId') userId: number,
-    @Query() weekQuery: WeekQueryDto,
-  ): Promise<ScheduleResponseDto[]> {
-    return this.schedulesService.findByWeek(userId, weekQuery);
-  }
   @Post('upload')
   @UseInterceptors(FileInterceptor('audio'))
   @ApiOperation({ summary: '음성 파일 업로드 및 일정 추출' })
