@@ -12,13 +12,12 @@ import { ResponseScheduleDto } from './dto/response-schedule.dto';
 import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
-import { plainToClass, plainToInstance } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import FormData from 'form-data';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { VoiceScheduleResponseDto } from './dto/voice-schedule.dto';
 
 @Injectable()
 export class SchedulesService {
