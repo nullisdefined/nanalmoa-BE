@@ -52,13 +52,19 @@ export class CreateScheduleDto {
     description: '메모',
     required: false,
     example: '이장님 몰래하는거라 조심해서 해야한다.',
+    default: '',
   })
   @IsOptional()
   @IsString()
-  memo?: string;
+  memo?: string = '';
 
   @ApiProperty({ description: '그룹 일정 여부', default: false })
   @IsOptional()
   @IsBoolean()
-  isGroupSchedule: boolean = false;
+  isGroupSchedule?: boolean = false;
+
+  @ApiProperty({ description: '종일 옵션', default: false })
+  @IsOptional()
+  @IsBoolean()
+  isAllDay?: boolean = false;
 }

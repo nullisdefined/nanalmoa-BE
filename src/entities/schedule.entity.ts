@@ -23,9 +23,12 @@ export class Schedule {
   @Column({ length: 255 })
   place: string;
 
-  @Column({ type: 'text', nullable: true })
-  memo: string | null;
+  @Column({ type: 'text', default: '' })
+  memo?: string;
 
   @Column({ name: 'is_group_schedule', default: false })
-  isGroupSchedule: boolean;
+  isGroupSchedule?: boolean;
+
+  @Column({ name: 'is_all_day', default: false })
+  isAllDay?: boolean;
 }

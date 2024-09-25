@@ -12,6 +12,7 @@ import { ScheduleResponseDto } from './dto/response-schedule.dto';
 import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class SchedulesService {
@@ -23,7 +24,10 @@ export class SchedulesService {
   async create(
     createScheduleDto: CreateScheduleDto,
   ): Promise<ScheduleResponseDto> {
-    const newSchedule = this.schedulesRepository.create(createScheduleDto);
+    // 기본값을 넣어주는 용도 (일반 자바스크립트 객체를 클래스의 인스턴스로 변환, 클래스에 정의된 데코레이터와 기본값들이 적용)
+    const scheduleData = plainToInstance(CreateScheduleDto, createScheduleDto);
+
+    const newSchedule = this.schedulesRepository.create(scheduleData);
     const savedSchedule = await this.schedulesRepository.save(newSchedule);
     return new ScheduleResponseDto(savedSchedule);
   }
@@ -121,15 +125,24 @@ export class SchedulesService {
     weekQuery: WeekQueryDto,
   ): Promise<ScheduleResponseDto[]> {
     const date = new Date(weekQuery.date);
+    date.setUTCHours(0, 0, 0, 0); // UTC 시간으로 설정
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1); // 월요일을 기준으로 주의 시작일 계산
 
-    const startDate = new Date(date.setDate(diff));
-    startDate.setHours(0, 0, 0, 0);
-
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff),
+    );
+    const endDate = new Date(
+      Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        diff + 6,
+        23,
+        59,
+        59,
+        999,
+      ),
+    );
 
     const schedules = await this.schedulesRepository.find({
       where: {

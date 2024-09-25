@@ -1,22 +1,22 @@
-import { ApiProperty, PickType } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { CreateScheduleDto } from './create-schedule.dto';
+import { Schedule } from 'src/entities/schedule.entity';
 
-export class ScheduleResponseDto extends PickType(CreateScheduleDto, [
-  'userId',
-  'categoryId',
-  'startDate',
-  'endDate',
-  'title',
-  'place',
-  'memo',
-  'isGroupSchedule',
-] as const) {
-  @ApiProperty({ description: '일정 ID', example: '1' })
+export class ScheduleResponseDto extends CreateScheduleDto {
+  @ApiProperty({ description: '일정 ID', example: 1 })
   scheduleId: number;
 
-  @ApiProperty({ description: '생성 날짜', example: '2023-09-21T09:00:00Z' })
-  createdAt: Date;
-
-  @ApiProperty({ description: '수정 날짜', example: '2023-09-21T20:00:00Z' })
-  updatedAt: Date;
+  constructor(schedule: Schedule) {
+    super(); // 상위 클래스의 속성 초기화
+    this.scheduleId = schedule.scheduleId;
+    this.userId = schedule.userId;
+    this.categoryId = schedule.categoryId;
+    this.startDate = schedule.startDate;
+    this.endDate = schedule.endDate;
+    this.title = schedule.title;
+    this.place = schedule.place;
+    this.memo = schedule.memo;
+    this.isGroupSchedule = schedule.isGroupSchedule;
+    this.isAllDay = schedule.isAllDay;
+  }
 }
