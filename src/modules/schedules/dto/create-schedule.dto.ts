@@ -6,23 +6,25 @@ import {
   IsBoolean,
   IsOptional,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateScheduleDto {
   @ApiProperty({ description: '사용자 ID', example: 1 })
   @IsNotEmpty()
+  @Type(() => Number)
   @IsNumber()
   userId: number;
 
   @ApiProperty({ description: '카테고리 ID', example: 2 })
   @IsNotEmpty()
+  @Type(() => Number)
   @IsNumber()
   categoryId: number;
 
   @ApiProperty({
     description: '일정 시작 날짜',
-    example: '2023-09-21T09:00:00Z',
+    example: '2024-09-21T09:00:00Z',
   })
   @IsNotEmpty()
   @IsDate()
@@ -31,22 +33,28 @@ export class CreateScheduleDto {
 
   @ApiProperty({
     description: '일정 종료 날짜',
-    example: '2023-09-21T18:00:00Z',
+    example: '2024-09-21T18:00:00Z',
   })
   @IsNotEmpty()
   @IsDate()
   @Type(() => Date)
   endDate: Date;
 
-  @ApiProperty({ description: '일정 제목', example: '마을 잔치' })
+  @ApiProperty({
+    description: '일정 제목',
+    example: '마을 잔치',
+    default: '새로운 이벤트',
+  })
   @IsNotEmpty()
   @IsString()
+  @Transform(({ value }) => value || '새로운 이벤트') // 기본값 설정
   title: string;
 
-  @ApiProperty({ description: '장소', example: '노인정' })
-  @IsNotEmpty()
+  @ApiProperty({ description: '장소', example: '노인정', default: '' })
+  @IsOptional()
   @IsString()
-  place: string;
+  @Transform(({ value }) => value || '') // 기본값 설정
+  place?: string;
 
   @ApiProperty({
     description: '메모',
@@ -56,15 +64,18 @@ export class CreateScheduleDto {
   })
   @IsOptional()
   @IsString()
-  memo?: string = '';
+  @Transform(({ value }) => value || '') // 기본값 설정
+  memo?: string;
 
   @ApiProperty({ description: '그룹 일정 여부', default: false })
   @IsOptional()
   @IsBoolean()
-  isGroupSchedule?: boolean = false;
+  @Transform(({ value }) => (value !== undefined ? value : false)) // 기본값 설정
+  isGroupSchedule?: boolean;
 
   @ApiProperty({ description: '종일 옵션', default: false })
   @IsOptional()
   @IsBoolean()
-  isAllDay?: boolean = false;
+  @Transform(({ value }) => (value !== undefined ? value : false)) // 기본값 설정
+  isAllDay?: boolean;
 }
