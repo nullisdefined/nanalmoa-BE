@@ -16,7 +16,7 @@ async function generateSwaggerJson() {
   fs.writeFileSync('./swagger.json', JSON.stringify(document));
 
   await app.close();
-  console.log('Swagger JSON 파일이 생성되었습니다람쥐.');
+  console.log('Swagger JSON 파일이 생성되었습니다');
 }
 
 generateSwaggerJson();
