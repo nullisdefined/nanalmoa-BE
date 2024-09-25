@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import fs from 'fs';
+import session from 'express-session';
+import passport from 'passport';
 
 declare const module: any;
 
@@ -12,6 +14,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const port = process.env.PORT;
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -19,6 +22,17 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+    }),
+  );
+
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   const config = new DocumentBuilder()
     .setTitle('Nanalmoa API')

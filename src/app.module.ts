@@ -9,6 +9,9 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { GroupModule } from './modules/group/group.module';
+import { Auth } from './entities/auth.entity';
+import { User } from './entities/user.entity';
+import { Schedule } from './entities/schedule.entity';
 
 @Module({
   imports: [
@@ -23,19 +26,22 @@ import { GroupModule } from './modules/group/group.module';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
-      entities: [__dirname + '/**/*.entity.{js,ts}'],
+      entities: [Auth, User, Schedule],
       synchronize: process.env.NODE_ENV === 'development',
       logging: process.env.NODE_ENV === 'development',
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
       ssl: {
         rejectUnauthorized: false,
       },
+      extra: {
+        timezone: '+09:00',
+      },
     }),
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_ACCESS_SECRET,
+      secret: process.env.JWT_SECRET,
       signOptions: {
-        expiresIn: process.env.JWT_ACCESS_EXPIRATION,
+        expiresIn: process.env.JWT_EXPIRATION,
       },
     }),
     AuthModule,
