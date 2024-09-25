@@ -27,9 +27,12 @@ import { GroupModule } from './modules/group/group.module';
       synchronize: process.env.NODE_ENV === 'development',
       logging: process.env.NODE_ENV === 'development',
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
-      ssl: {
-        rejectUnauthorized: false,
-      },
+      ssl:
+        process.env.NODE_ENV == 'production'
+          ? {
+              rejectUnauthorized: false,
+            }
+          : false,
     }),
     JwtModule.register({
       global: true,
