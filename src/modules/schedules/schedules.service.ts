@@ -13,6 +13,7 @@ import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { plainToInstance } from 'class-transformer';
+import { VoiceScheduleConfirmDto } from './dto/voice-schedule.dto';
 
 @Injectable()
 export class SchedulesService {
@@ -153,5 +154,24 @@ export class SchedulesService {
     });
 
     return schedules.map((schedule) => new ScheduleResponseDto(schedule));
+  }
+
+  async processVoiceSchedule(
+    audioBuffer: Buffer,
+    currentDateTime: string,
+  ): Promise<VoiceScheduleConfirmDto[]> {
+    return [];
+  }
+
+  async confirmAndSaveSchedule(
+    scheduleData: VoiceScheduleConfirmDto[],
+  ): Promise<ScheduleResponseDto[]> {
+    return scheduleData.map(
+      (data) =>
+        new ScheduleResponseDto({
+          scheduleId: 0, // 임시 ID
+          ...data,
+        } as Schedule),
+    );
   }
 }
