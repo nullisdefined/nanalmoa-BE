@@ -39,17 +39,15 @@ export class SchedulesController {
 
   @Get('range')
   @ApiOperation({ summary: '특정 날짜 범위의 일정 조회' })
-  @ApiQuery({ name: 'userId', required: true, type: Number })
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
     type: [ResponseScheduleDto],
   })
   async getSchedulesByDateRange(
-    @Query('userId') userId: number,
     @Query() dateRange: DateRangeDto,
   ): Promise<ResponseScheduleDto[]> {
-    return this.schedulesService.findByDateRange(userId, dateRange);
+    return this.schedulesService.findByDateRange(dateRange);
   }
 
   @Post() // 추후 인증  @UseGuards(JwtAuthGuard), @ApiBearerAuth() 관련 설정이 필요함.

@@ -84,7 +84,6 @@ export class SchedulesService {
   }
 
   async findByDateRange(
-    userId: number,
     dateRange: DateRangeDto,
   ): Promise<ResponseScheduleDto[]> {
     if (dateRange.startDate > dateRange.endDate) {
@@ -94,7 +93,7 @@ export class SchedulesService {
     }
     const schedules = await this.schedulesRepository.find({
       where: {
-        userId: userId,
+        userId: dateRange.userId,
         startDate: Between(dateRange.startDate, dateRange.endDate),
       },
       order: { startDate: 'ASC' },
