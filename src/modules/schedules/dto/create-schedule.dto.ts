@@ -49,12 +49,12 @@ export class CreateScheduleDto {
   @ApiProperty({
     description: '일정 제목',
     example: '마을 잔치',
-    default: '새로운 이벤트',
+    default: '새로운 일정',
     required: false,
   })
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => value || '새로운 이벤트') // 기본값 설정
+  @Transform(({ value }) => value || '새로운 일정') // 기본값 설정
   title?: string;
 
   @ApiProperty({
