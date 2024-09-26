@@ -5,8 +5,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Schedule } from 'src/entities/schedule.entity';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
+import { CategoriesModule } from '../categories/categories.module';
 @Module({
-  imports: [TypeOrmModule.forFeature([Schedule]), HttpModule, ConfigModule],
+  imports: [
+    TypeOrmModule.forFeature([Schedule]),
+    HttpModule,
+    ConfigModule,
+    CategoriesModule,
+  ],
   controllers: [SchedulesController],
   providers: [SchedulesService],
 })

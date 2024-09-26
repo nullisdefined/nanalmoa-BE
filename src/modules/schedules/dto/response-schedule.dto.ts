@@ -2,6 +2,7 @@ import { PickType } from '@nestjs/mapped-types';
 import { ApiProperty } from '@nestjs/swagger';
 import { CreateScheduleDto } from './create-schedule.dto';
 import { Schedule } from 'src/entities/schedule.entity';
+import { Category } from '@/entities/category.entity';
 
 export class ResponseScheduleDto extends PickType(CreateScheduleDto, [
   'userId',
@@ -20,8 +21,15 @@ export class ResponseScheduleDto extends PickType(CreateScheduleDto, [
   @ApiProperty({ description: '사용자 ID', example: 1, required: true })
   userId: number;
 
-  @ApiProperty({ description: '카테고리 ID', example: 2, required: true })
-  categoryId: number;
+  @ApiProperty({
+    description: '카테고리',
+    type: () => Category,
+    example: {
+      categoryId: 1,
+      categoryName: '병원',
+    },
+  })
+  category: Category;
 
   @ApiProperty({
     description: '일정 시작 날짜',
@@ -64,11 +72,11 @@ export class ResponseScheduleDto extends PickType(CreateScheduleDto, [
   @ApiProperty({ description: '종일 옵션', example: false, required: true })
   isAllDay: boolean;
 
-  constructor(schedule: Schedule) {
+  constructor(schedule: Schedule, category: Category) {
     super();
     this.scheduleId = schedule.scheduleId;
     this.userId = schedule.userId;
-    this.categoryId = schedule.categoryId;
+    this.category = category;
     this.startDate = schedule.startDate;
     this.endDate = schedule.endDate;
     this.title = schedule.title;

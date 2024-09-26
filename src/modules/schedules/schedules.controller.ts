@@ -62,8 +62,7 @@ export class SchedulesController {
   async createSchedule(
     @Body() createScheduleDto: CreateScheduleDto,
   ): Promise<ResponseScheduleDto> {
-    const schedule = await this.schedulesService.create(createScheduleDto);
-    return new ResponseScheduleDto(schedule);
+    return await this.schedulesService.create(createScheduleDto);
   }
 
   @Patch(':id')
@@ -83,8 +82,7 @@ export class SchedulesController {
     @Param('id') id: number,
     @Body() updateScheduleDto: UpdateScheduleDto,
   ): Promise<ResponseScheduleDto> {
-    const schedule = await this.schedulesService.update(id, updateScheduleDto);
-    return new ResponseScheduleDto(schedule);
+    return await this.schedulesService.update(id, updateScheduleDto);
   }
 
   @Delete(':id')
@@ -140,8 +138,7 @@ export class SchedulesController {
   @ApiResponse({ status: 401, description: '인증 실패' })
   @ApiResponse({ status: 404, description: '일정을 찾을 수 없음' })
   async getScheduleById(@Param('id') id: number): Promise<ResponseScheduleDto> {
-    const schedule = await this.schedulesService.findOne(id);
-    return new ResponseScheduleDto(schedule);
+    return await this.schedulesService.findOne(id);
   }
 
   @Get()

@@ -10,6 +10,7 @@ import { UsersModule } from './modules/users/users.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { GroupModule } from './modules/group/group.module';
 import { dataSourceOptions } from './dataSource';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { dataSourceOptions } from './dataSource';
     UsersModule,
     SchedulesModule,
     GroupModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
