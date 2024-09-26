@@ -19,6 +19,7 @@ import FormData from 'form-data';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { Category } from '@/entities/category.entity';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class SchedulesService {
@@ -224,20 +225,18 @@ export class SchedulesService {
     return dtos;
   }
 
-  // 음성 파일 전사 요청
   async transcribeAudio(file: Express.Multer.File): Promise<string> {
-    const jwtToken = this.configService.get<string>('RETURN_ZERO_ACCESS_TOKEN');
+    const jwtToken = await this.ensureValidToken();
 
     const formData = new FormData();
     formData.append('file', file.buffer, {
-      filename: file.originalname, // 업로드된 파일의 원래 이름 사용
-      contentType: file.mimetype, // 파일의 MIME 타입 자동 감지
+      filename: file.originalname,
+      contentType: file.mimetype,
     });
     formData.append(
       'config',
       JSON.stringify({
         use_diarization: true,
-        //diarization: { spk_count: 2 },
         use_itn: true,
         use_disfluency_filter: false,
         use_profanity_filter: false,
@@ -254,19 +253,25 @@ export class SchedulesService {
         this.httpService.post(url, formData, {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
-            ...formData.getHeaders(), // form data의 헤더 포함
+            ...formData.getHeaders(),
           },
         }),
       );
-      return response.data.id; // TRANSCRIBE_ID 반환
+      return response.data.id;
     } catch (error) {
+      if (error.response?.status === 401) {
+        // 토큰이 만료되었을 경우, 토큰을 갱신하고 다시 시도
+        console.log('Token expired, refreshing and retrying...');
+        await this.ensureValidToken(); // 강제로 새 토큰 발급
+        return this.transcribeAudio(file); // 재귀적으로 다시 시도
+      }
       throw new Error(`STT 요청 실패: ${error.message}`);
     }
   }
 
   // 전사 결과 조회
   async getTranscriptionResult(transcribeId: string): Promise<any> {
-    const jwtToken = this.configService.get<string>('RETURN_ZERO_ACCESS_TOKEN');
+    const jwtToken = await this.ensureValidToken();
 
     const url = `https://openapi.vito.ai/v1/transcribe/${transcribeId}`;
 
@@ -280,8 +285,51 @@ export class SchedulesService {
       );
       return response.data;
     } catch (error) {
+      if (error.response?.status === 401) {
+        // 토큰이 만료되었을 경우, 토큰을 갱신하고 다시 시도
+        console.log('Token expired, refreshing and retrying...');
+        await this.ensureValidToken(); // 강제로 새 토큰 발급
+        return this.getTranscriptionResult(transcribeId); // 재귀적으로 다시 시도
+      }
       throw new Error(`전사 결과 조회 실패: ${error.message}`);
     }
+  }
+
+  private isTokenExpiredOrCloseToExpiry(
+    token: string,
+    thresholdMinutes: number = 5,
+  ): boolean {
+    try {
+      const decoded = jwt.decode(token) as { exp: number };
+      if (!decoded || !decoded.exp) {
+        return true; // 토큰이 유효하지 않거나 만료 시간이 없으면 만료된 것으로 간주
+      }
+
+      const currentTime = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = decoded.exp - currentTime;
+      const thresholdSeconds = thresholdMinutes * 60;
+
+      return timeUntilExpiry <= thresholdSeconds;
+    } catch (error) {
+      console.error('토큰 검증 중 오류 발생:', error);
+      return true; // 오류 발생 시 만료된 것으로 간주
+    }
+  }
+
+  async ensureValidToken(): Promise<string> {
+    // 토큰 유효성 검사 로직
+    // 만료되었거나 곧 만료될 예정이면 새로운 토큰 발급
+    const currentToken = this.configService.get<string>(
+      'RETURN_ZERO_ACCESS_TOKEN',
+    );
+    // 토큰 만료 시간 확인 로직 추가 필요
+    if (this.isTokenExpiredOrCloseToExpiry(currentToken)) {
+      const newToken = await this.getJwtToken();
+      // 새 토큰을 환경 변수나 설정에 저장
+      this.configService.set('RETURN_ZERO_ACCESS_TOKEN', newToken);
+      return newToken;
+    }
+    return currentToken;
   }
 
   // 전사 결과가 완료될 때까지 폴링
@@ -291,16 +339,19 @@ export class SchedulesService {
     interval: number = 20000,
   ): Promise<any> {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const result = await this.getTranscriptionResult(transcribeId);
-
-      if (result.status === 'completed') {
-        return result; // 상태가 완료되면 결과 반환
+      try {
+        const result = await this.getTranscriptionResult(transcribeId);
+        if (result.status === 'completed') {
+          return result;
+        }
+      } catch (error) {
+        console.error(`시도 ${attempt + 1} failed:`, error);
+        if (attempt === maxRetries - 1) {
+          throw error;
+        }
       }
-
-      // 아직 완료되지 않았을 경우 일정 시간 기다림
       await new Promise((resolve) => setTimeout(resolve, interval));
     }
-
     throw new Error('전사 결과를 완료할 수 없습니다. 시간이 초과되었습니다.');
   }
 
@@ -376,7 +427,6 @@ export class SchedulesService {
     });
 
     const gptResponseContent = gptResponse.choices[0].message.content;
-    console.log(dumi_data);
     return this.convertGptResponseToCreateDto(
       this.parseGptResponse(gptResponseContent),
     );
@@ -434,62 +484,3 @@ function formatDateToYYYYMMDDHHMMSS(date: Date): string {
   // );
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
-
-const dumi_data = [
-  {
-    startDate: '2024-10-03 00:00:00',
-    endDate: '2024-10-03 23:59:00',
-    category: '경조사',
-    place: '서울 롯데호텔',
-    intent: '손주 결혼식 참석',
-    isAllDay: true,
-  },
-  {
-    startDate: '2024-10-05 09:30:00',
-    endDate: '2024-10-05 10:30:00',
-    category: '병원',
-    place: '서울대학교병원',
-    intent: '정기 검진',
-    isAllDay: false,
-  },
-  {
-    startDate: '2024-10-07 18:00:00',
-    endDate: '2024-10-07 19:30:00',
-    category: '운동',
-    place: '동네 공원',
-    intent: '저녁 산책',
-    isAllDay: false,
-  },
-  {
-    startDate: '2024-10-10 07:00:00',
-    endDate: '2024-10-10 07:30:00',
-    category: '복약',
-    place: '',
-    intent: '혈압약 복용',
-    isAllDay: false,
-  },
-  {
-    startDate: '2024-10-15 10:00:00',
-    endDate: '2024-10-15 12:00:00',
-    category: '가족',
-    place: '할머니 댁',
-    intent: '할머니 생신 축하',
-    isAllDay: false,
-  },
-  {
-    startDate: '2024-10-20 09:00:00',
-    endDate: '2024-10-20 10:00:00',
-    category: '종교',
-    place: '동네 교회',
-    intent: '주일 예배',
-    isAllDay: false,
-  },
-  {
-    startDate: '2024-10-25 00:00:00',
-    endDate: '2024-10-25 23:59:00',
-    category: '기타',
-    place: '집',
-    intent: '집안 대청소',
-    isAllDay: true,
-  },
-];
