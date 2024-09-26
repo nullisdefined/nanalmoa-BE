@@ -3,17 +3,15 @@ import { Type } from 'class-transformer';
 
 export class VoiceScheduleUploadDto {
   @ApiProperty({
-    type: 'string',
-    format: 'binary',
+    type: 'file',
     description: '음성 파일 (.wav, .mp3 등)',
   })
-  audio: any;
+  audio: Express.Multer.File;
 
   @ApiProperty({
     example: '2024-09-26T12:45:50Z',
-    description: '음성 인식 시점의 현재 날짜와 시간',
+    description: '음성 인식 시점의 현재 날짜',
     type: String,
-    format: 'date-time',
   })
   @Type(() => Date)
   currentDateTime: Date;
@@ -24,14 +22,16 @@ export class VoiceScheduleResponseDto {
   userId: number;
 
   @ApiProperty({
-    description: '일정 시작 날짜',
+    description: '일정 시작 날짜와 "시간"',
     example: '2024-09-21T09:00:00Z',
+    type: Date,
   })
   startDate: Date;
 
   @ApiProperty({
-    description: '일정 종료 날짜',
+    description: '일정 종료 날짜와 "시간"',
     example: '2024-09-21T18:00:00Z',
+    type: Date,
   })
   endDate: Date;
 
