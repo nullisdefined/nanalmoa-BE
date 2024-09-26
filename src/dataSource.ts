@@ -7,6 +7,7 @@ import { User } from './entities/user.entity';
 import { Category } from './entities/category.entity';
 import { Schedule } from './entities/schedule.entity';
 import { CategorySeeder } from './database/seeds/category.seed';
+import { ScheduleSeeder } from './database/seeds/schedule.seed';
 
 config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
 
@@ -19,7 +20,7 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
   database: process.env.DB_DATABASE,
   entities: [Auth, User, Category, Schedule],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
-  seeds: [CategorySeeder],
+  seeds: [CategorySeeder, ScheduleSeeder],
   ssl:
     process.env.NODE_ENV === 'production'
       ? { rejectUnauthorized: false }
