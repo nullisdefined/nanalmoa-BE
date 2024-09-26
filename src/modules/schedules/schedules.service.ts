@@ -260,6 +260,16 @@ export class SchedulesService {
     return await this.pollTranscriptionResult(transcribeId);
   }
 
+  private parseGptResponse(response: string): any[] {
+    try {
+      // GPT 응답을 JSON으로 파싱
+      return JSON.parse(response);
+    } catch (error) {
+      console.error('Error parsing GPT response:', error);
+      throw new Error('Failed to parse GPT response');
+    }
+  }
+
   async getJwtToken(): Promise<string> {
     const clientId = this.configService.get<string>('RETURN_ZERO_CLIENT_ID');
     const clientSecret = this.configService.get<string>(
@@ -317,16 +327,9 @@ export class SchedulesService {
 
     const gptResponseContent = gptResponse.choices[0].message.content;
     console.log(dumi_data);
-    return this.convertGptResponseToCreateDto(dumi_data);
-  }
-  private parseGptResponse(response: string): any[] {
-    try {
-      // GPT 응답을 JSON으로 파싱
-      return JSON.parse(response);
-    } catch (error) {
-      console.error('Error parsing GPT response:', error);
-      throw new Error('Failed to parse GPT response');
-    }
+    return this.convertGptResponseToCreateDto(
+      this.parseGptResponse(gptResponseContent),
+    );
   }
 
   private convertGptResponseToCreateDto(gptEvents: any[]): CreateScheduleDto[] {
