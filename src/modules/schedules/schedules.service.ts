@@ -18,6 +18,7 @@ import { lastValueFrom } from 'rxjs';
 import FormData from 'form-data';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
+import { Category } from '@/entities/category.entity';
 
 @Injectable()
 export class SchedulesService {
@@ -26,6 +27,8 @@ export class SchedulesService {
   constructor(
     @InjectRepository(Schedule)
     private schedulesRepository: Repository<Schedule>,
+    @InjectRepository(Category)
+    private categoryRepository: Repository<Category>,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
@@ -43,7 +46,11 @@ export class SchedulesService {
 
     const newSchedule = this.schedulesRepository.create(scheduleData);
     const savedSchedule = await this.schedulesRepository.save(newSchedule);
-    return new ResponseScheduleDto(savedSchedule);
+    const category = await this.categoryRepository.findOne({
+      where: { categoryId: savedSchedule.categoryId },
+    });
+
+    return new ResponseScheduleDto(savedSchedule, category);
   }
 
   async update(
@@ -63,7 +70,11 @@ export class SchedulesService {
     Object.assign(schedule, updateScheduleDto);
 
     const savedSchedule = await this.schedulesRepository.save(schedule);
-    return new ResponseScheduleDto(savedSchedule);
+    const category = await this.categoryRepository.findOne({
+      where: { categoryId: savedSchedule.categoryId },
+    });
+
+    return new ResponseScheduleDto(savedSchedule, category);
   }
 
   async remove(id: number): Promise<void> {
@@ -84,7 +95,11 @@ export class SchedulesService {
         `해당 id : ${id}를 가진 스케쥴을 찾을 수 없습니다. `,
       );
     }
-    return new ResponseScheduleDto(schedule);
+    const category = await this.categoryRepository.findOne({
+      where: { categoryId: schedule.categoryId },
+    });
+
+    return new ResponseScheduleDto(schedule, category);
   }
 
   async findAllByUserId(userId: number): Promise<ResponseScheduleDto[]> {
@@ -92,8 +107,16 @@ export class SchedulesService {
       where: { userId: userId },
       order: { startDate: 'ASC' }, // 시작 날짜 기준 오름차순 정렬
     });
+    const dtos = await Promise.all(
+      schedules.map(async (schedule) => {
+        const category = await this.categoryRepository.findOne({
+          where: { categoryId: schedule.categoryId },
+        });
+        return new ResponseScheduleDto(schedule, category);
+      }),
+    );
 
-    return schedules.map((schedule) => new ResponseScheduleDto(schedule));
+    return dtos;
   }
 
   async findByDateRange(
@@ -112,7 +135,16 @@ export class SchedulesService {
       order: { startDate: 'ASC' },
     });
 
-    return schedules.map((schedule) => new ResponseScheduleDto(schedule));
+    const dtos = await Promise.all(
+      schedules.map(async (schedule) => {
+        const category = await this.categoryRepository.findOne({
+          where: { categoryId: schedule.categoryId },
+        });
+        return new ResponseScheduleDto(schedule, category);
+      }),
+    );
+
+    return dtos;
   }
 
   async findByMonth(monthQuery: MonthQueryDto): Promise<ResponseScheduleDto[]> {
@@ -133,7 +165,16 @@ export class SchedulesService {
 
     console.log('Schedules found:', schedules.length);
 
-    return schedules.map((schedule) => new ResponseScheduleDto(schedule));
+    const dtos = await Promise.all(
+      schedules.map(async (schedule) => {
+        const category = await this.categoryRepository.findOne({
+          where: { categoryId: schedule.categoryId },
+        });
+        return new ResponseScheduleDto(schedule, category);
+      }),
+    );
+
+    return dtos;
   }
 
   async findByWeek(weekQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
@@ -171,7 +212,16 @@ export class SchedulesService {
 
     console.log('Schedules found:', schedules.length);
 
-    return schedules.map((schedule) => new ResponseScheduleDto(schedule));
+    const dtos = await Promise.all(
+      schedules.map(async (schedule) => {
+        const category = await this.categoryRepository.findOne({
+          where: { categoryId: schedule.categoryId },
+        });
+        return new ResponseScheduleDto(schedule, category);
+      }),
+    );
+
+    return dtos;
   }
 
   // 음성 파일 전사 요청
@@ -332,31 +382,36 @@ export class SchedulesService {
     );
   }
 
-  private convertGptResponseToCreateDto(gptEvents: any[]): CreateScheduleDto[] {
-    return gptEvents.map((event) => {
-      const dto = new CreateScheduleDto();
-      dto.userId = 1; // 임시 사용자 ID
-      dto.startDate = new Date(event.startDate);
-      dto.endDate = new Date(event.endDate);
-      dto.title = event.intent;
-      dto.place = event.place || '';
-      dto.isAllDay = event.isAllDay;
+  private async convertGptResponseToCreateDto(
+    gptEvents: any[],
+  ): Promise<CreateScheduleDto[]> {
+    // 모든 카테고리를 한 번에 조회
+    const allCategories = await this.categoryRepository.find();
 
-      const categoryMap = {
-        병원: 1,
-        복약: 2,
-        가족: 3,
-        종교: 4,
-        운동: 5,
-        경조사: 6,
-        기타: 7,
-      };
-      dto.categoryId = categoryMap[event.category] || 7;
-      console.log(dto);
-      return dto;
-    });
+    // 카테고리 이름을 키로, ID를 값으로 하는 맵 생성
+    const categoryMap = allCategories.reduce((acc, category) => {
+      acc[category.categoryName] = category.categoryId;
+      return acc;
+    }, {});
+
+    return Promise.all(
+      gptEvents.map(async (event) => {
+        const dto = new CreateScheduleDto();
+        dto.userId = 1; // 임시 사용자 ID
+        dto.startDate = new Date(event.startDate);
+        dto.endDate = new Date(event.endDate);
+        dto.title = event.intent;
+        dto.place = event.place || '';
+        dto.isAllDay = event.isAllDay;
+
+        // 카테고리 매핑
+        dto.categoryId = categoryMap[event.category] || categoryMap['기타'];
+
+        console.log(dto);
+        return dto;
+      }),
+    );
   }
-
   async transcribeAndFetchResultWithGpt(
     file: Express.Multer.File,
     currentDateTime: string,
