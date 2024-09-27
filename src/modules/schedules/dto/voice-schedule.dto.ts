@@ -1,5 +1,7 @@
+import { Category } from '@/entities/category.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { CreateScheduleDto } from './create-schedule.dto';
 
 export class VoiceScheduleUploadDto {
   @ApiProperty({
@@ -17,33 +19,12 @@ export class VoiceScheduleUploadDto {
   currentDateTime: Date;
 }
 
-export class VoiceScheduleResponseDto {
-  @ApiProperty({ description: '사용자 ID', example: 1 })
-  userId: number;
+export class VoiceScheduleResponseDto extends CreateScheduleDto {
+  @ApiProperty({ description: '카테고리 정보' })
+  category: Category;
 
-  @ApiProperty({
-    description: '일정 시작 날짜와 "시간"',
-    example: '2024-09-21T09:00:00Z',
-    type: Date,
-  })
-  startDate: Date;
-
-  @ApiProperty({
-    description: '일정 종료 날짜와 "시간"',
-    example: '2024-09-21T18:00:00Z',
-    type: Date,
-  })
-  endDate: Date;
-
-  @ApiProperty({ description: '일정 제목', example: '주일 예배' })
-  title: string;
-
-  @ApiProperty({ description: '장소', example: '동네 교회' })
-  place: string;
-
-  @ApiProperty({ description: '종일 옵션', example: false })
-  isAllDay: boolean;
-
-  @ApiProperty({ description: '카테고리 ID', example: 4 })
-  categoryId: number;
+  constructor(partial: Partial<VoiceScheduleResponseDto> = {}) {
+    super();
+    Object.assign(this, partial);
+  }
 }
