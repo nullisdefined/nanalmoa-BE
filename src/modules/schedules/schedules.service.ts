@@ -20,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { Category } from '@/entities/category.entity';
 import * as jwt from 'jsonwebtoken';
+import { VoiceScheduleResponseDto } from './dto/voice-schedule.dto';
 
 @Injectable()
 export class SchedulesService {
@@ -434,19 +435,19 @@ export class SchedulesService {
 
   private async convertGptResponseToCreateDto(
     gptEvents: any[],
-  ): Promise<CreateScheduleDto[]> {
+  ): Promise<VoiceScheduleResponseDto[]> {
     // 모든 카테고리를 한 번에 조회
     const allCategories = await this.categoryRepository.find();
 
-    // 카테고리 이름을 키로, ID를 값으로 하는 맵 생성
+    // 카테고리 이름을 키로, 카테고리 객체를 값으로 하는 맵 생성
     const categoryMap = allCategories.reduce((acc, category) => {
-      acc[category.categoryName] = category.categoryId;
+      acc[category.categoryName] = category;
       return acc;
     }, {});
 
     return Promise.all(
       gptEvents.map(async (event) => {
-        const dto = new CreateScheduleDto();
+        const dto = new VoiceScheduleResponseDto();
         dto.userId = 1; // 임시 사용자 ID
         dto.startDate = new Date(event.startDate);
         dto.endDate = new Date(event.endDate);
@@ -455,7 +456,8 @@ export class SchedulesService {
         dto.isAllDay = event.isAllDay;
 
         // 카테고리 매핑
-        dto.categoryId = categoryMap[event.category] || categoryMap['기타'];
+        const category = categoryMap[event.category] || categoryMap['기타'];
+        dto.category = category; // 전체 카테고리 객체 설정
 
         console.log(dto);
         return dto;
