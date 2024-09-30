@@ -26,7 +26,8 @@ import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { VoiceScheduleUploadDto } from './dto/voice-schedule.dto';
+import { VoiceScheduleUploadDto } from './dto/voice-schedule-upload.dto';
+import { OCRScheduleUploadDto } from './dto/\bocr-schedule-upload.dto';
 
 @ApiTags('Schedules')
 @Controller('schedules')
@@ -196,6 +197,30 @@ export class SchedulesController {
     // TranscriptionService를 사용하여 음성 파일 전사 및 처리
     const result =
       await this.schedulesService.transcribeWhisperAndFetchResultWithGpt(
+        file,
+        currentDateTime,
+      );
+
+    return result;
+  }
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiOperation({ summary: '이미지 파일 업로드 및 일정 추출' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: OCRScheduleUploadDto })
+  @ApiResponse({
+    status: 200,
+    description: '추출된 일정 정보',
+    type: [CreateScheduleDto],
+  })
+  async uploadImageSchedule(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('currentDateTime') currentDateTime: string,
+  ): Promise<CreateScheduleDto[]> {
+    // OCRTranscriptionService를 사용하여 이미지 파일 OCR 처리 및 일정 추출
+    const result =
+      await this.schedulesService.transcribeOCRAndFetchResultWithGpt(
         file,
         currentDateTime,
       );
