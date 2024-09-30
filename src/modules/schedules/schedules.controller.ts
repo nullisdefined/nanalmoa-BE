@@ -155,18 +155,7 @@ export class SchedulesController {
     return this.schedulesService.findAllByUserId(userId);
   }
 
-  @Get('return-zero/token')
-  @ApiOperation({ summary: '리턴제로 JWT 토큰 발급' })
-  @ApiResponse({
-    status: 200,
-    description: 'JWT 토큰 발급 성공',
-    type: String,
-  })
-  async getJwtToken(): Promise<string> {
-    return await this.schedulesService.getJwtToken();
-  }
-
-  @Post('upload')
+  @Post('upload/RTZR')
   @UseInterceptors(FileInterceptor('audio'))
   @ApiOperation({ summary: '음성 파일 업로드 및 일정 추출' })
   @ApiConsumes('multipart/form-data')
@@ -176,15 +165,40 @@ export class SchedulesController {
     description: '추출된 일정 정보',
     //type: [VoiceScheduleConfirmDto],
   })
-  async uploadVoiceSchedule(
+  async uploadVoiceScheduleByRTZR(
     @UploadedFile() file: Express.Multer.File,
     @Body('currentDateTime') currentDateTime: string,
   ): Promise<CreateScheduleDto[]> {
     // TranscriptionService를 사용하여 음성 파일 전사 및 처리
-    const result = await this.schedulesService.transcribeAndFetchResultWithGpt(
-      file,
-      currentDateTime,
-    );
+    const result =
+      await this.schedulesService.transcribeRTZRAndFetchResultWithGpt(
+        file,
+        currentDateTime,
+      );
+
+    return result;
+  }
+
+  @Post('upload/Whisper')
+  @UseInterceptors(FileInterceptor('audio'))
+  @ApiOperation({ summary: '음성 파일 업로드 및 일정 추출' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: VoiceScheduleUploadDto })
+  @ApiResponse({
+    status: 200,
+    description: '추출된 일정 정보',
+    //type: [VoiceScheduleConfirmDto],
+  })
+  async uploadVoiceScheduleByWhisper(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('currentDateTime') currentDateTime: string,
+  ): Promise<CreateScheduleDto[]> {
+    // TranscriptionService를 사용하여 음성 파일 전사 및 처리
+    const result =
+      await this.schedulesService.transcribeWhisperAndFetchResultWithGpt(
+        file,
+        currentDateTime,
+      );
 
     return result;
   }
