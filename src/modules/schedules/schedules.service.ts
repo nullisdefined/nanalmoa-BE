@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
@@ -17,12 +18,14 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { Category } from '@/entities/category.entity';
-import { VoiceScheduleResponseDto } from './dto/voice-schedule.dto';
+import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
 import { VoiceTranscriptionService } from './voice-transcription.service';
+import { OCRTranscriptionService } from './OCR-transcription.service';
 
 @Injectable()
 export class SchedulesService {
   private openai: OpenAI;
+  private readonly logger = new Logger(SchedulesService.name);
 
   constructor(
     @InjectRepository(Schedule)
@@ -32,6 +35,7 @@ export class SchedulesService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly voiceTranscriptionService: VoiceTranscriptionService,
+    private readonly ocrTranscriptionService: OCRTranscriptionService,
   ) {
     const openaiApiKey = this.configService.get<string>('OPENAI_API_KEY');
     this.openai = new OpenAI({
@@ -330,5 +334,29 @@ export class SchedulesService {
       await this.voiceTranscriptionService.whisperTranscribeResult(file);
     const result = await this.processWithGpt(transcribe, currentDateTime);
     return result;
+  }
+
+  async transcribeOCRAndFetchResultWithGpt(
+    file: Express.Multer.File,
+    currentDateTime: string,
+  ) {
+    try {
+      const ocrResult = await this.ocrTranscriptionService.detectTextByOCR(
+        file.buffer,
+      );
+      if (!ocrResult) {
+        throw new Error('OCR 결과가 비어있습니다.');
+      }
+
+      // GPT 처리 로직
+      const gptResult = await this.processWithGpt(ocrResult, currentDateTime);
+      return gptResult;
+    } catch (error) {
+      this.logger.error(
+        `OCR 및 GPT 처리 중 오류 발생: ${error.message}`,
+        error.stack,
+      );
+      throw new Error(`일정 추출 실패: ${error.message}`);
+    }
   }
 }
