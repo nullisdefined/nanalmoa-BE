@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { Category } from './category.entity';
 
 @Entity('schedule')
 export class Schedule {
@@ -8,8 +15,9 @@ export class Schedule {
   @Column({ name: 'user_id' })
   userId: number;
 
-  @Column({ name: 'category_id', default: 7 })
-  categoryId?: number;
+  @ManyToOne(() => Category, (category) => category.schedules)
+  @JoinColumn({ name: 'category_id' })
+  category: Category;
 
   @Column({ name: 'start_date', type: 'timestamp' })
   startDate: Date;
