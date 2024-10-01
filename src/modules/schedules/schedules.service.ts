@@ -13,7 +13,6 @@ import { ResponseScheduleDto } from './dto/response-schedule.dto';
 import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
-import { plainToInstance } from 'class-transformer';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
@@ -43,17 +42,31 @@ export class SchedulesService {
     });
   }
 
+  private async getCategoryById(categoryId: number): Promise<Category> {
+    const category = await this.categoryRepository.findOne({
+      where: { categoryId: categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException(
+        `전달받은 카테고리 ID인 ${categoryId}는 존재하지 않는 카테고리입니다.`,
+      );
+    }
+
+    return category;
+  }
+
   async create(
     createScheduleDto: CreateScheduleDto,
   ): Promise<ResponseScheduleDto> {
-    // 기본값을 넣어주는 용도 (일반 자바스크립트 객체를 클래스의 인스턴스로 변환, 클래스에 정의된 데코레이터와 기본값들이 적용)
-    const scheduleData = plainToInstance(CreateScheduleDto, createScheduleDto);
+    const category = await this.getCategoryById(createScheduleDto.categoryId);
 
-    const newSchedule = this.schedulesRepository.create(scheduleData);
-    const savedSchedule = await this.schedulesRepository.save(newSchedule);
-    const category = await this.categoryRepository.findOne({
-      where: { categoryId: savedSchedule.categoryId },
+    const newSchedule = this.schedulesRepository.create({
+      ...createScheduleDto,
+      category: category, // Category 객체 할당합니다.
     });
+
+    const savedSchedule = await this.schedulesRepository.save(newSchedule);
 
     return new ResponseScheduleDto(savedSchedule, category);
   }
@@ -64,6 +77,7 @@ export class SchedulesService {
   ): Promise<ResponseScheduleDto> {
     const schedule = await this.schedulesRepository.findOne({
       where: { scheduleId: id },
+      relations: ['category'],
     });
     if (!schedule) {
       throw new NotFoundException(
@@ -71,15 +85,17 @@ export class SchedulesService {
       );
     }
 
+    if (updateScheduleDto.categoryId) {
+      schedule.category = await this.getCategoryById(
+        updateScheduleDto.categoryId,
+      );
+    }
+
     // 업데이트할 필드만 병합
     Object.assign(schedule, updateScheduleDto);
 
     const savedSchedule = await this.schedulesRepository.save(schedule);
-    const category = await this.categoryRepository.findOne({
-      where: { categoryId: savedSchedule.categoryId },
-    });
-
-    return new ResponseScheduleDto(savedSchedule, category);
+    return new ResponseScheduleDto(savedSchedule, schedule.category);
   }
 
   async remove(id: number): Promise<void> {
@@ -94,30 +110,25 @@ export class SchedulesService {
   async findOne(id: number): Promise<ResponseScheduleDto> {
     const schedule = await this.schedulesRepository.findOne({
       where: { scheduleId: id },
+      relations: ['category'],
     });
     if (!schedule) {
       throw new NotFoundException(
         `해당 id : ${id}를 가진 스케쥴을 찾을 수 없습니다. `,
       );
     }
-    const category = await this.categoryRepository.findOne({
-      where: { categoryId: schedule.categoryId },
-    });
-
-    return new ResponseScheduleDto(schedule, category);
+    return new ResponseScheduleDto(schedule, schedule.category);
   }
 
   async findAllByUserId(userId: number): Promise<ResponseScheduleDto[]> {
     const schedules = await this.schedulesRepository.find({
       where: { userId: userId },
       order: { startDate: 'ASC' }, // 시작 날짜 기준 오름차순 정렬
+      relations: ['category'],
     });
     const dtos = await Promise.all(
       schedules.map(async (schedule) => {
-        const category = await this.categoryRepository.findOne({
-          where: { categoryId: schedule.categoryId },
-        });
-        return new ResponseScheduleDto(schedule, category);
+        return new ResponseScheduleDto(schedule, schedule.category);
       }),
     );
 
@@ -137,15 +148,13 @@ export class SchedulesService {
         userId: dateRange.userId,
         startDate: Between(dateRange.startDate, dateRange.endDate),
       },
+      relations: ['category'],
       order: { startDate: 'ASC' },
     });
 
     const dtos = await Promise.all(
       schedules.map(async (schedule) => {
-        const category = await this.categoryRepository.findOne({
-          where: { categoryId: schedule.categoryId },
-        });
-        return new ResponseScheduleDto(schedule, category);
+        return new ResponseScheduleDto(schedule, schedule.category);
       }),
     );
 
@@ -165,6 +174,8 @@ export class SchedulesService {
         userId: monthQuery.userId,
         startDate: Between(startDate, endDate),
       },
+      relations: ['category'],
+
       order: { startDate: 'ASC' },
     });
 
@@ -172,10 +183,7 @@ export class SchedulesService {
 
     const dtos = await Promise.all(
       schedules.map(async (schedule) => {
-        const category = await this.categoryRepository.findOne({
-          where: { categoryId: schedule.categoryId },
-        });
-        return new ResponseScheduleDto(schedule, category);
+        return new ResponseScheduleDto(schedule, schedule.category);
       }),
     );
 
@@ -212,6 +220,7 @@ export class SchedulesService {
         userId: weekQuery.userId,
         startDate: Between(startDate, endDate),
       },
+      relations: ['category'],
       order: { startDate: 'ASC' },
     });
 
@@ -219,10 +228,7 @@ export class SchedulesService {
 
     const dtos = await Promise.all(
       schedules.map(async (schedule) => {
-        const category = await this.categoryRepository.findOne({
-          where: { categoryId: schedule.categoryId },
-        });
-        return new ResponseScheduleDto(schedule, category);
+        return new ResponseScheduleDto(schedule, schedule.category);
       }),
     );
 

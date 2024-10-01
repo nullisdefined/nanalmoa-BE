@@ -27,7 +27,7 @@ import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { VoiceScheduleUploadDto } from './dto/voice-schedule-upload.dto';
-import { OCRScheduleUploadDto } from './dto/\bocr-schedule-upload.dto';
+import { OCRScheduleUploadDto } from './dto/ocr-schedule-upload.dto';
 
 @ApiTags('Schedules')
 @Controller('schedules')
