@@ -59,7 +59,8 @@ export class SchedulesService {
   async create(
     createScheduleDto: CreateScheduleDto,
   ): Promise<ResponseScheduleDto> {
-    const category = await this.getCategoryById(createScheduleDto.categoryId);
+    const categoryId = createScheduleDto.categoryId ?? 7;
+    const category = await this.getCategoryById(categoryId);
 
     const newSchedule = this.schedulesRepository.create({
       ...createScheduleDto,
