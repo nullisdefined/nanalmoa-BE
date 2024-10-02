@@ -7,11 +7,15 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Auth } from './auth.entity';
+import { v4 as uuidv4 } from 'uuid';
 
 @Entity('user')
 export class User {
   @PrimaryGeneratedColumn({ name: 'user_id' })
   userId: number;
+
+  @Column({ type: 'uuid', unique: true, name: 'user_uuid' })
+  userUuid: string;
 
   @Column({ length: 20, nullable: true, name: 'name' })
   name: string;
@@ -33,4 +37,10 @@ export class User {
 
   @OneToMany(() => Auth, (auth) => auth.user)
   auths: Auth[];
+
+  constructor() {
+    if (!this.userUuid) {
+      this.userUuid = uuidv4();
+    }
+  }
 }

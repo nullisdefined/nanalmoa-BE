@@ -6,7 +6,7 @@ import axios from 'axios';
 import { Auth, AuthProvider } from 'src/entities/auth.entity';
 import { User } from 'src/entities/user.entity';
 import { Repository } from 'typeorm';
-
+import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class AuthService {
   constructor(
@@ -152,6 +152,7 @@ export class AuthService {
     } else {
       // 새 사용자 등록
       const newUser = this.userRepository.create({
+        userUuid: uuidv4(),
         name,
         profileImage: profileImage,
         email,
@@ -171,7 +172,7 @@ export class AuthService {
   }
 
   generateAccessToken(user: User): string {
-    const payload = { sub: user.userId, email: user.email, name: user.name };
+    const payload = { sub: user.userUuid, email: user.email, name: user.name };
     return this.jwtService.sign(payload);
   }
 
@@ -228,20 +229,22 @@ export class AuthService {
   }
 
   async refreshAccessToken(
-    userId: number,
+    userUuid: string,
     refreshToken: string,
     socialProvider: AuthProvider,
   ): Promise<{ accessToken: string; refreshToken?: string }> {
+    const user = await this.userRepository.findOne({
+      where: { userUuid },
+    });
+    if (!user) {
+      throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+    }
+
     const auth = await this.authRepository.findOne({
-      where: {
-        userId: userId,
-        refreshToken: refreshToken,
-        authProvider: socialProvider,
-      },
-      relations: ['user'],
+      where: { user: { userUuid }, authProvider: socialProvider },
     });
 
-    if (!auth) {
+    if (!auth || auth.refreshToken !== refreshToken) {
       throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
     }
 
@@ -260,7 +263,7 @@ export class AuthService {
           );
       }
 
-      const accessToken = this.generateAccessToken(auth.user);
+      const accessToken = this.generateAccessToken(user);
 
       if (socialTokens.refresh_token) {
         auth.refreshToken = socialTokens.refresh_token;
@@ -272,7 +275,6 @@ export class AuthService {
         refreshToken: socialTokens.refresh_token,
       };
     } catch (error) {
-      // console.error('Token refresh error:', error);
       await this.authRepository.update(auth.authId, { refreshToken: null });
       throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
     }

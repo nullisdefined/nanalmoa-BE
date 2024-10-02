@@ -1,26 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { User } from '@/entities/user.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Auth } from '@/entities/auth.entity';
 
 @Injectable()
 export class UsersService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
-  }
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Auth)
+    private readonly authRepository: Repository<Auth>,
+  ) {}
 
-  findAll() {
-    return `This action returns all users`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
-  }
-
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async getUserByUuid(userUuid: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { userUuid } });
+    if (!user) {
+      throw new NotFoundException(
+        `사용자 UUID ${userUuid}를 찾을 수 없습니다.`,
+      );
+    }
+    return user;
   }
 }

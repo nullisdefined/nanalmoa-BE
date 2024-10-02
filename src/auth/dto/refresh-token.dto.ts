@@ -3,10 +3,13 @@ import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import { AuthProvider } from 'src/entities/auth.entity';
 
 export class RefreshTokenDto {
-  @ApiProperty({ description: '사용자 ID', example: 1 })
+  @ApiProperty({
+    description: '사용자 UUID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsNotEmpty()
-  @IsNumber()
-  userId: number;
+  @IsString()
+  userUuid: string;
 
   @ApiProperty({
     description: '리프레시 토큰',

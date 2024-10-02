@@ -113,7 +113,7 @@ export class AuthController {
           type: 'object',
           properties: {
             id: {
-              example: 1,
+              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
             },
             email: {
               example: 'user@example.com',
@@ -164,14 +164,14 @@ export class AuthController {
         refreshToken: naverTokens.refresh_token,
         socialProvider: AuthProvider.NAVER,
         user: {
-          id: user.userId,
+          id: user.userUuid,
           email: user.email,
           name: user.name,
           profileImage: user.profileImage,
         },
       };
     } catch (error) {
-      // console.error('Naver login error:', error);
+      console.error('Naver login error:', error);
       throw new UnauthorizedException('네이버 로그인 실패');
     }
   }
@@ -219,7 +219,7 @@ export class AuthController {
           type: 'object',
           properties: {
             id: {
-              example: 1,
+              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
             },
             email: {
               example: 'user@example.com',
@@ -270,14 +270,14 @@ export class AuthController {
         refreshToken: kakaoTokens.refresh_token,
         socialProvider: AuthProvider.KAKAO,
         user: {
-          id: user.userId,
+          id: user.userUuid,
           email: user.email,
           name: user.name,
           profileImage: user.profileImage,
         },
       };
     } catch (error) {
-      // console.error('Kakao login error:', error);
+      console.error('Kakao login error:', error);
       throw new UnauthorizedException('카카오 로그인 실패');
     }
   }
@@ -316,7 +316,7 @@ export class AuthController {
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     try {
       const newAccessToken = await this.authService.refreshAccessToken(
-        refreshTokenDto.userId,
+        refreshTokenDto.userUuid,
         refreshTokenDto.refreshToken,
         refreshTokenDto.socialProvider,
       );
