@@ -6,6 +6,8 @@ import { Schedule } from 'src/entities/schedule.entity';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { CategoriesModule } from '../categories/categories.module';
+import { VoiceTranscriptionService } from './voice-transcription.service';
+import { OCRTranscriptionService } from './OCR-transcription.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Schedule]),
@@ -14,6 +16,10 @@ import { CategoriesModule } from '../categories/categories.module';
     CategoriesModule,
   ],
   controllers: [SchedulesController],
-  providers: [SchedulesService],
+  providers: [
+    SchedulesService,
+    VoiceTranscriptionService,
+    OCRTranscriptionService,
+  ],
 })
 export class SchedulesModule {}
