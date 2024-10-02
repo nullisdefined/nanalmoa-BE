@@ -11,6 +11,7 @@ import { SchedulesModule } from './modules/schedules/schedules.module';
 import { GroupModule } from './modules/group/group.module';
 import { dataSourceOptions } from './dataSource';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
       envFilePath: `.${process.env.NODE_ENV}.env`,
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,
