@@ -16,6 +16,7 @@ import {
   ApiResponse,
   ApiBody,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
@@ -293,8 +294,9 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @ApiOperation({ summary: '액세스 토큰 갱신' })
-  @ApiBody({ type: RefreshTokenDto, description: '리프레시 토큰 정보' })
   @ApiResponse({
     status: 200,
     description: '토큰 갱신 성공, 리프레시 토큰은 옵셔널',
@@ -322,11 +324,15 @@ export class AuthController {
       },
     },
   })
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+  async refreshToken(@Req() req, @Body() refreshTokenDto: RefreshTokenDto) {
     try {
-      const decodedToken = this.jwtService.decode(
-        refreshTokenDto.expiredAccessToken,
-      );
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        throw new UnauthorizedException('인증 토큰이 없습니다.');
+      }
+
+      const [, token] = authHeader.split(' ');
+      const decodedToken = this.jwtService.decode(token);
 
       if (!decodedToken || typeof decodedToken === 'string') {
         throw new UnauthorizedException('유효하지 않은 토큰입니다.');
