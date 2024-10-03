@@ -7,6 +7,8 @@ import {
   Query,
   Req,
   UnauthorizedException,
+  InternalServerErrorException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,8 +21,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthProvider } from 'src/entities/auth.entity';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -349,5 +351,104 @@ export class AuthController {
   @ApiResponse({ status: 200, description: '로그아웃 성공' })
   async logout(@Req() req) {
     // 로그아웃 로직
+  }
+
+  @Post('sms/send')
+  @ApiOperation({ summary: 'SMS 인증 코드 전송' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        phoneNumber: {
+          type: 'string',
+          description: '인증 코드를 받을 전화번호',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '인증 코드 전송 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: '인증 코드 전송 성공',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 500,
+    description: '인증 코드 전송 실패',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 500 },
+        message: { type: 'string', example: '인증 코드 전송에 실패했습니다' },
+        error: { type: 'string', example: 'Internal Server Error' },
+      },
+    },
+  })
+  async sendVerificationCode(@Body('phoneNumber') phoneNumber: string) {
+    const result = await this.authService.sendVerificationCode(phoneNumber);
+    if (!result) {
+      throw new InternalServerErrorException('인증 코드 전송에 실패했습니다');
+    }
+    return { message: '인증 코드 전송 성공' };
+  }
+
+  @Post('sms/verify')
+  @ApiOperation({ summary: 'SMS 인증 코드 확인' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        phoneNumber: {
+          type: 'string',
+          description: '인증 코드를 받은 전화번호',
+        },
+        code: {
+          type: 'string',
+          description: '수신한 인증 코드',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '인증 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: '인증 성공',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: '유효하지 않은 인증 코드',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 400 },
+        message: { type: 'string', example: '유효하지 않은 인증 코드입니다.' },
+        error: { type: 'string', example: 'Bad Request' },
+      },
+    },
+  })
+  verifyCode(
+    @Body('phoneNumber') phoneNumber: string,
+    @Body('code') code: string,
+  ) {
+    const isValid = this.authService.verifyCode(phoneNumber, code);
+    if (!isValid) {
+      throw new BadRequestException('유효하지 않은 인증 코드입니다.');
+    }
+    return { message: '인증 성공' };
   }
 }
