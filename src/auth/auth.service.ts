@@ -171,8 +171,11 @@ export class AuthService {
     }
   }
 
-  generateAccessToken(user: User): string {
-    const payload = { sub: user.userUuid, email: user.email, name: user.name };
+  generateAccessToken(user: User, socialProvider: AuthProvider): string {
+    const payload = {
+      sub: user.userUuid,
+      socialProvider: socialProvider,
+    };
     return this.jwtService.sign(payload);
   }
 
@@ -263,7 +266,7 @@ export class AuthService {
           );
       }
 
-      const accessToken = this.generateAccessToken(user);
+      const accessToken = this.generateAccessToken(user, socialProvider);
 
       if (socialTokens.refresh_token) {
         auth.refreshToken = socialTokens.refresh_token;

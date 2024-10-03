@@ -1,30 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { AuthProvider } from 'src/entities/auth.entity';
 
 export class RefreshTokenDto {
   @ApiProperty({
-    description: '사용자 UUID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: '만료된 액세스 토큰',
+    example:
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
   })
   @IsNotEmpty()
   @IsString()
-  userUuid: string;
+  expiredAccessToken: string;
 
   @ApiProperty({
     description: '리프레시 토큰',
-    example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
+    example:
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
   })
   @IsNotEmpty()
   @IsString()
   refreshToken: string;
-
-  @ApiProperty({
-    description: '소셜 로그인 프로바이더',
-    enum: AuthProvider,
-    example: AuthProvider.KAKAO,
-  })
-  @IsNotEmpty()
-  @IsString()
-  socialProvider: AuthProvider;
 }
