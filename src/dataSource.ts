@@ -8,6 +8,8 @@ import { Category } from './entities/category.entity';
 import { Schedule } from './entities/schedule.entity';
 import { CategorySeeder } from './database/seeds/category.seed';
 import { ScheduleSeeder } from './database/seeds/schedule.seed';
+import { ManagerInvitation } from './entities/manager-invitation.entity';
+import { ManagerSubordinate } from './entities/manager-subordinate.entity';
 
 config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
 
@@ -18,7 +20,14 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [Auth, User, Category, Schedule],
+  entities: [
+    Auth,
+    User,
+    Category,
+    Schedule,
+    ManagerInvitation,
+    ManagerSubordinate,
+  ],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
   seeds: [CategorySeeder, ScheduleSeeder],
   ssl:
