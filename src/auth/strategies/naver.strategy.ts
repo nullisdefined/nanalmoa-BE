@@ -32,7 +32,7 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
         profileImage: _json.profile_image,
       };
 
-      const validatedUser = await this.authService.findOrCreateUser(
+      const validatedUser = await this.authService.findOrCreateSocialUser(
         user,
         refreshToken,
         AuthProvider.NAVER,

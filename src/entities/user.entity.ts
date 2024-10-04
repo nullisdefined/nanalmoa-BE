@@ -1,4 +1,5 @@
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -29,8 +30,11 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Column({ length: 50, name: 'email' })
+  @Column({ length: 50, nullable: true, name: 'email' })
   email: string;
+
+  @Column({ length: 20, unique: true, nullable: true, name: 'phone_number' })
+  phoneNumber: string;
 
   @Column({ default: false, name: 'is_manager' })
   isManager: boolean;
@@ -38,7 +42,8 @@ export class User {
   @OneToMany(() => Auth, (auth) => auth.user)
   auths: Auth[];
 
-  constructor() {
+  @BeforeInsert()
+  generateUuid() {
     if (!this.userUuid) {
       this.userUuid = uuidv4();
     }

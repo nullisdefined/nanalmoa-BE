@@ -12,6 +12,7 @@ import { User } from './user.entity';
 export enum AuthProvider {
   KAKAO = 'kakao',
   NAVER = 'naver',
+  BASIC = 'basic',
 }
 
 @Entity('auth')
@@ -25,7 +26,7 @@ export class Auth {
   @Column({ type: 'enum', enum: AuthProvider, name: 'auth_provider' })
   authProvider: AuthProvider;
 
-  @Column({ length: 255, name: 'oauth_id' })
+  @Column({ length: 255, nullable: true, name: 'oauth_id' })
   oauthId: string;
 
   @Column({ length: 255, nullable: true, name: 'refresh_token' })
