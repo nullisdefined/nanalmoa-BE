@@ -20,6 +20,7 @@ import { AuthService } from './auth.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthProvider } from 'src/entities/auth.entity';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -27,6 +28,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
   ) {}
 
   @Post('signup')
@@ -157,7 +159,10 @@ export class AuthController {
         naverTokens.refresh_token,
         AuthProvider.NAVER,
       );
-      const accessToken = this.authService.generateAccessToken(user);
+      const accessToken = this.authService.generateAccessToken(
+        user,
+        AuthProvider.NAVER,
+      );
 
       return {
         accessToken,
@@ -263,7 +268,10 @@ export class AuthController {
         kakaoTokens.refresh_token,
         AuthProvider.KAKAO,
       );
-      const accessToken = this.authService.generateAccessToken(user);
+      const accessToken = this.authService.generateAccessToken(
+        user,
+        AuthProvider.KAKAO,
+      );
 
       return {
         accessToken,
@@ -292,8 +300,7 @@ export class AuthController {
       type: 'object',
       properties: {
         accessToken: {
-          example:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
         refreshToken: {
           example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
@@ -315,14 +322,23 @@ export class AuthController {
   })
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     try {
-      const newAccessToken = await this.authService.refreshAccessToken(
-        refreshTokenDto.userUuid,
-        refreshTokenDto.refreshToken,
-        refreshTokenDto.socialProvider,
+      const decodedToken = this.jwtService.decode(
+        refreshTokenDto.expiredAccessToken,
       );
-      return { ...newAccessToken };
+
+      if (!decodedToken || typeof decodedToken === 'string') {
+        throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+      }
+
+      const { sub: userUuid, socialProvider } = decodedToken;
+
+      const newTokens = await this.authService.refreshAccessToken(
+        userUuid,
+        refreshTokenDto.refreshToken,
+        socialProvider,
+      );
+      return newTokens;
     } catch (error) {
-      // console.error('Token refresh error:', error);
       throw new UnauthorizedException('액세스 토큰 갱신 실패');
     }
   }

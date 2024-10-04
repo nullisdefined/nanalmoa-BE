@@ -21,6 +21,7 @@ jobs:
         with:
           output: swagger-ui
           spec-file: swagger.json
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Swagger UI 호스팅
         uses: peaceiris/actions-gh-pages@v3
