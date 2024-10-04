@@ -5,6 +5,7 @@ export class BasicLoginDto {
   @ApiProperty({
     description: '사용자 전화번호',
     example: '01012345678',
+    required: true,
   })
   @IsString()
   @IsNotEmpty()
@@ -13,6 +14,7 @@ export class BasicLoginDto {
   @ApiProperty({
     description: '인증 코드',
     example: '123456',
+    required: true,
   })
   @IsString()
   @IsNotEmpty()

@@ -340,21 +340,6 @@ export class AuthController {
 
   @Post('basic/signup')
   @ApiOperation({ summary: '일반 회원가입' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        phoneNumber: { type: 'string', description: '사용자 전화번호' },
-        verificationCode: { type: 'string', description: '인증 코드' },
-        email: { type: 'string', description: '사용자 이메일 (선택사항)' },
-        name: { type: 'string', description: '사용자 이름 (선택사항)' },
-        profileImage: {
-          type: 'string',
-          description: '프로필 이미지 URL (선택사항)',
-        },
-      },
-    },
-  })
   @ApiResponse({
     status: 201,
     description: '회원가입 성공',
@@ -369,12 +354,12 @@ export class AuthController {
               type: 'string',
               example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
             },
-            phoneNumber: { type: 'string', example: '+821012345678' },
+            phoneNumber: { type: 'string', example: '01012345678' },
             name: { type: 'string', example: '홍길동' },
-            email: { type: 'string', example: 'user@example.com' },
+            email: { type: 'string', example: null },
             profileImage: {
               type: 'string',
-              example: 'https://example.com/profile.jpg',
+              example: null,
             },
           },
         },
@@ -408,15 +393,6 @@ export class AuthController {
 
   @Post('basic/login')
   @ApiOperation({ summary: '일반 로그인' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        phoneNumber: { type: 'string', description: '사용자 전화번호' },
-        verificationCode: { type: 'string', description: '인증 코드' },
-      },
-    },
-  })
   @ApiResponse({
     status: 200,
     description: '로그인 성공',
@@ -440,12 +416,12 @@ export class AuthController {
               type: 'string',
               example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
             },
-            phoneNumber: { type: 'string', example: '+821012345678' },
+            phoneNumber: { type: 'string', example: '01012345678' },
             name: { type: 'string', example: '홍길동' },
-            email: { type: 'string', example: 'user@example.com' },
+            email: { type: 'string', example: null },
             profileImage: {
               type: 'string',
-              example: 'https://example.com/profile.jpg',
+              example: null,
             },
           },
         },

@@ -5,6 +5,7 @@ export class BasicSignupDto {
   @ApiProperty({
     description: '전화번호',
     example: '01012345678',
+    required: true,
   })
   @IsNotEmpty()
   @IsString()
@@ -12,7 +13,8 @@ export class BasicSignupDto {
 
   @ApiProperty({
     description: '인증 코드',
-    example: '123456',
+    example: '940816',
+    required: true,
   })
   @IsNotEmpty()
   @IsString()
@@ -29,7 +31,7 @@ export class BasicSignupDto {
 
   @ApiProperty({
     description: '이메일',
-    example: 'example@example.com',
+    example: null,
     required: false,
   })
   @IsOptional()
@@ -38,7 +40,7 @@ export class BasicSignupDto {
 
   @ApiProperty({
     description: '프로필 이미지 URL',
-    example: 'https://example.com/profile.jpg',
+    example: null,
     required: false,
   })
   @IsOptional()
