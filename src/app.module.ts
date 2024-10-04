@@ -12,6 +12,8 @@ import { GroupModule } from './modules/group/group.module';
 import { dataSourceOptions } from './dataSource';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { PassportModule } from '@nestjs/passport';
+import { ManagerController } from './modules/manager/manager.controller';
+import { ManagerModule } from './modules/manager/manager.module';
 
 @Module({
   imports: [
@@ -33,8 +35,9 @@ import { PassportModule } from '@nestjs/passport';
     SchedulesModule,
     GroupModule,
     CategoriesModule,
+    ManagerModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, ManagerController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {

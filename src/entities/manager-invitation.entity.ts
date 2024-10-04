@@ -11,11 +11,11 @@ export class ManagerInvitation {
   @PrimaryGeneratedColumn({ name: 'manager_invitation_id' })
   managerInvitationId: number;
 
-  @Column({ name: 'inviter_uuid', type: 'varchar' })
-  inviterUuid: string;
+  @Column({ name: 'manager_uuid', type: 'varchar' })
+  managerUuid: string;
 
-  @Column({ name: 'invitee_uuid', type: 'varchar' })
-  inviteeUuid: string;
+  @Column({ name: 'subordinate_uuid', type: 'varchar' })
+  subordinateUuid: string;
 
   @Column({
     name: 'status',
