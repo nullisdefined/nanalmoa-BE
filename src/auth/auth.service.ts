@@ -1,5 +1,4 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
@@ -7,6 +6,8 @@ import { Auth, AuthProvider } from 'src/entities/auth.entity';
 import { User } from 'src/entities/user.entity';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { CoolSmsService } from './coolsms.service';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class AuthService {
   constructor(
@@ -16,9 +17,12 @@ export class AuthService {
     private readonly authRepository: Repository<Auth>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly coolSmsService: CoolSmsService,
   ) {}
 
   private stateStore = new Map<string, number>();
+  private verificationCodes: Map<string, { code: string; expiresAt: Date }> =
+    new Map();
 
   async getNaverToken(
     code: string,
@@ -281,5 +285,46 @@ export class AuthService {
       await this.authRepository.update(auth.authId, { refreshToken: null });
       throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
     }
+  }
+
+  private generateVerificationCode(): string {
+    return Math.random().toString().slice(2, 8);
+  }
+
+  async sendVerificationCode(phoneNumber: string): Promise<boolean> {
+    const verificationCode = this.generateVerificationCode();
+    const expirationMinutes = 5;
+    const expiresAt = new Date(Date.now() + expirationMinutes * 60000);
+
+    this.verificationCodes.set(phoneNumber, {
+      code: verificationCode,
+      expiresAt,
+    });
+
+    try {
+      const result = await this.coolSmsService.sendVerificationCode(
+        phoneNumber,
+        verificationCode,
+        expirationMinutes,
+      );
+      return result;
+    } catch (error) {
+      console.error('인증 코드 전송 실패:', error);
+      return false;
+    }
+  }
+
+  verifyCode(phoneNumber: string, code: string): boolean {
+    const storedData = this.verificationCodes.get(phoneNumber);
+    if (storedData && storedData.code === code) {
+      if (new Date() <= storedData.expiresAt) {
+        this.verificationCodes.delete(phoneNumber);
+        return true;
+      } else {
+        console.log('인증 코드가 만료되었습니다.');
+        this.verificationCodes.delete(phoneNumber);
+      }
+    }
+    return false;
   }
 }
