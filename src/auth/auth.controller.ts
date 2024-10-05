@@ -37,6 +37,12 @@ import {
   VerifyCodeResponseSchema,
   VerifyCodeErrorSchema,
   RefreshTokenErrorSchema,
+  NaverTokenResponseSchema,
+  KakaoTokenResponseSchema,
+  RefreshBasicTokenResponseSchema,
+  RefreshNaverTokenResponseSchema,
+  RefreshKakaoTokenResponseSchema,
+  RefreshAccessTokenResponseSchema,
 } from './schema/response.schema';
 import { VerifyCodeDto } from './dto/verify-code.dto';
 
@@ -212,7 +218,7 @@ export class AuthController {
   @ApiOperation({ summary: '일반 회원가입' })
   @ApiResponse({
     status: 201,
-    description: '회원가입 성공',
+    description: '회원가입 성공 및 로그인 상태(토큰 발행)',
     schema: BasicSignupResponseSchema,
   })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
@@ -263,7 +269,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '토큰 갱신 성공, 리프레시 토큰은 옵셔널',
-    schema: RefreshTokenResponseSchema,
+    schema: RefreshAccessTokenResponseSchema,
   })
   @ApiResponse({
     status: 401,
