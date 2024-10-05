@@ -10,6 +10,7 @@ import { CategorySeeder } from './database/seeds/category.seed';
 import { ScheduleSeeder } from './database/seeds/schedule.seed';
 import { ManagerInvitation } from './entities/manager-invitation.entity';
 import { ManagerSubordinate } from './entities/manager-subordinate.entity';
+import { UserSeeder } from './database/seeds/user.seed';
 
 config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
 
@@ -29,7 +30,7 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     ManagerSubordinate,
   ],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
-  seeds: [CategorySeeder, ScheduleSeeder],
+  seeds: [CategorySeeder, ScheduleSeeder, UserSeeder],
   ssl:
     process.env.NODE_ENV === 'production'
       ? { rejectUnauthorized: false }

@@ -548,7 +548,7 @@ export class ScheduleSeeder implements Seeder {
         const title = faker.helpers.arrayElement(this.scheduleTemplates);
 
         const schedule = {
-          userId: 1, //!: 사용자 ID 1로 고정
+          userId: 101,
           categoryId: faker.helpers.arrayElement(categories).categoryId,
           startDate,
           endDate,

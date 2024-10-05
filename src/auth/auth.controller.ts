@@ -99,14 +99,6 @@ export class AuthController {
       return {
         accessToken,
         refreshToken: socialTokens.refresh_token,
-        socialProvider: provider,
-        user: {
-          id: user.userUuid,
-          email: user.email,
-          phoneNumber: user.phoneNumber,
-          name: user.name,
-          profileImage: user.profileImage,
-        },
       };
     } catch (error) {
       console.error(`${provider} login error:`, error);
@@ -252,13 +244,6 @@ export class AuthController {
     const tokens = await this.authService.loginWithPhoneNumber(user);
     return {
       ...tokens,
-      user: {
-        id: user.userUuid,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        name: user.name,
-        profileImage: user.profileImage,
-      },
     };
   }
 

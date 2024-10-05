@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   ManagerInvitation,
   InvitationStatus,
@@ -19,6 +19,8 @@ import {
   GetInvitationSendDto,
 } from './dto/get-invitation.dto';
 import { CreateManagerSubordinateDto } from './dto/create-manager.dto';
+import { User } from '@/entities/user.entity';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 
 @Injectable()
 export class ManagerService {
@@ -28,6 +30,8 @@ export class ManagerService {
     private managerInvitationRepository: Repository<ManagerInvitation>,
     @InjectRepository(ManagerSubordinate)
     private managerSubordinateRepository: Repository<ManagerSubordinate>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   async createInvitation(
@@ -170,6 +174,58 @@ export class ManagerService {
       );
       throw new InternalServerErrorException(
         '사용자 간 초대장 조회 중 오류가 발생했습니다.',
+      );
+    }
+  }
+  async getManagerList(subordinateUuid: string): Promise<UserResponseDto[]> {
+    try {
+      const managerSubordinates = await this.managerSubordinateRepository.find({
+        where: { subordinateUuid },
+      });
+
+      const managerUuids = managerSubordinates.map((ms) => ms.managerUuid);
+      const managers = await this.userRepository.findBy({
+        userUuid: In(managerUuids),
+      });
+
+      this.logger.log(
+        `사용자 ${subordinateUuid}의 관리자 ${managers.length}명을 조회했습니다.`,
+      );
+      return managers.map((manager) => new UserResponseDto(manager));
+    } catch (error) {
+      this.logger.error(`관리자 목록 조회 실패: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(
+        '관리자 목록 조회 중 오류가 발생했습니다.',
+      );
+    }
+  }
+
+  async getSubordinateList(managerUuid: string): Promise<UserResponseDto[]> {
+    try {
+      const managerSubordinates = await this.managerSubordinateRepository.find({
+        where: { managerUuid },
+      });
+
+      const subordinateUuids = managerSubordinates.map(
+        (ms) => ms.subordinateUuid,
+      );
+      const subordinates = await this.userRepository.findBy({
+        userUuid: In(subordinateUuids),
+      });
+
+      this.logger.log(
+        `관리자 ${managerUuid}의 피관리자 ${subordinates.length}명을 조회했습니다.`,
+      );
+      return subordinates.map(
+        (subordinate) => new UserResponseDto(subordinate),
+      );
+    } catch (error) {
+      this.logger.error(
+        `피관리자 목록 조회 실패: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        '피관리자 목록 조회 중 오류가 발생했습니다.',
       );
     }
   }
