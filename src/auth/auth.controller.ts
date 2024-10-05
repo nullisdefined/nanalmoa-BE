@@ -24,6 +24,27 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthProvider } from 'src/entities/auth.entity';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { BasicSignupDto } from './dto/basic-signup.dto';
+import { BasicLoginDto } from './dto/basic-login.dto';
+import {
+  BasicLoginResponseSchema,
+  BasicSignupResponseSchema,
+  KakaoLoginResponseSchema,
+  NaverLoginResponseSchema,
+  RefreshTokenResponseSchema,
+  SendVerificationCodeResponseSchema,
+  SendVerificationCodeErrorSchema,
+  VerifyCodeResponseSchema,
+  VerifyCodeErrorSchema,
+  RefreshTokenErrorSchema,
+  NaverTokenResponseSchema,
+  KakaoTokenResponseSchema,
+  RefreshBasicTokenResponseSchema,
+  RefreshNaverTokenResponseSchema,
+  RefreshKakaoTokenResponseSchema,
+  RefreshAccessTokenResponseSchema,
+} from './schema/response.schema';
+import { VerifyCodeDto } from './dto/verify-code.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -34,49 +55,56 @@ export class AuthController {
     private readonly jwtService: JwtService,
   ) {}
 
-  @Post('signup')
-  @ApiOperation({ summary: '일반 회원가입' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        email: { type: 'string', description: '사용자 이메일' },
-        password: { type: 'string', description: '사용자 비밀번호' },
-        name: { type: 'string', description: '사용자 이름' },
-      },
-    },
-  })
-  @ApiResponse({ status: 201, description: '회원가입 성공' })
-  @ApiResponse({ status: 400, description: '잘못된 요청' })
-  async signup(@Body() signupDto: any) {
-    // 회원가입 로직
-  }
-
-  @Post('login')
-  @ApiOperation({ summary: '일반 로그인' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        email: { type: 'string', description: '사용자 이메일' },
-        password: { type: 'string', description: '사용자 비밀번호' },
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: '로그인 성공' })
-  @ApiResponse({ status: 401, description: '인증 실패' })
-  async login(@Body() loginDto: any) {
-    // 로그인 로직
-  }
-
   @Get('naver')
   @UseGuards(AuthGuard('naver'))
-  @ApiOperation({ summary: '네이버 로그인' })
+  @ApiOperation({ summary: '백엔드에서 네이버 로그인' })
   @ApiResponse({
     status: 302,
     description: '네이버 로그인 페이지로 리다이렉트',
   })
   async naverLogin() {}
+
+  @Get('kakao')
+  @UseGuards(AuthGuard('kakao'))
+  @ApiOperation({ summary: '백엔드에서 카카오 로그인' })
+  @ApiResponse({
+    status: 302,
+    description: '카카오 로그인 페이지로 리다이렉트',
+  })
+  async kakaoLogin() {}
+
+  private async handleSocialLogin(code: string, provider: AuthProvider) {
+    if (!code) {
+      throw new UnauthorizedException('인가 코드가 없습니다.');
+    }
+
+    try {
+      const socialTokens =
+        provider === AuthProvider.NAVER
+          ? await this.authService.getNaverToken(code)
+          : await this.authService.getKakaoToken(code);
+
+      const socialUser =
+        provider === AuthProvider.NAVER
+          ? await this.authService.getNaverUserInfo(socialTokens.access_token)
+          : await this.authService.getKakaoUserInfo(socialTokens.access_token);
+
+      const user = await this.authService.findOrCreateSocialUser(
+        socialUser,
+        socialTokens.refresh_token,
+        provider,
+      );
+      const accessToken = this.authService.generateAccessToken(user, provider);
+
+      return {
+        accessToken,
+        refreshToken: socialTokens.refresh_token,
+      };
+    } catch (error) {
+      console.error(`${provider} login error:`, error);
+      throw new UnauthorizedException(`${provider} 로그인 실패`);
+    }
+  }
 
   @Get('naver/callback')
   @ApiOperation({ summary: '네이버 로그인 콜백' })
@@ -95,103 +123,15 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '네이버 로그인 인증 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: {
-          type: 'string',
-          description: '발급된 액세스 토큰',
-          example:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
-        },
-        refreshToken: {
-          type: 'string',
-          description: '발급된 리프레시 토큰',
-          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-        },
-        socialProvider: {
-          type: 'string',
-          description: '소셜 프로바이더',
-          example: 'naver',
-        },
-        user: {
-          type: 'object',
-          properties: {
-            id: {
-              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
-            },
-            email: {
-              example: 'user@example.com',
-            },
-            name: {
-              example: '홍길동',
-            },
-            profileImage: {
-              example: 'https://example.com/profile.jpg',
-            },
-          },
-        },
-      },
-    },
+    schema: NaverLoginResponseSchema,
   })
   @ApiResponse({
     status: 401,
     description: '인증 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 401 },
-        message: { type: 'string', example: '네이버 로그인 실패' },
-        error: { type: 'string', example: 'Unauthorized' },
-      },
-    },
   })
   async naverLoginCallback(@Query('code') code: string) {
-    try {
-      if (!code) {
-        throw new UnauthorizedException('인가 코드가 없습니다.');
-      }
-
-      const naverTokens = await this.authService.getNaverToken(code);
-      const naverUser = await this.authService.getNaverUserInfo(
-        naverTokens.access_token,
-      );
-
-      const user = await this.authService.findOrCreateUser(
-        naverUser,
-        naverTokens.refresh_token,
-        AuthProvider.NAVER,
-      );
-      const accessToken = this.authService.generateAccessToken(
-        user,
-        AuthProvider.NAVER,
-      );
-
-      return {
-        accessToken,
-        refreshToken: naverTokens.refresh_token,
-        socialProvider: AuthProvider.NAVER,
-        user: {
-          id: user.userUuid,
-          email: user.email,
-          name: user.name,
-          profileImage: user.profileImage,
-        },
-      };
-    } catch (error) {
-      console.error('Naver login error:', error);
-      throw new UnauthorizedException('네이버 로그인 실패');
-    }
+    return this.handleSocialLogin(code, AuthProvider.NAVER);
   }
-
-  @Get('kakao')
-  @UseGuards(AuthGuard('kakao'))
-  @ApiOperation({ summary: '카카오 로그인' })
-  @ApiResponse({
-    status: 302,
-    description: '카카오 로그인 페이지로 리다이렉트',
-  })
-  async kakaoLogin() {}
 
   @Get('kakao/callback')
   @ApiOperation({ summary: '카카오 로그인 콜백' })
@@ -204,93 +144,107 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '카카오 로그인 인증 성공',
+    schema: KakaoLoginResponseSchema,
+  })
+  @ApiResponse({
+    status: 401,
+    description: '인증 실패',
+  })
+  async kakaoLoginCallback(@Query('code') code: string) {
+    return this.handleSocialLogin(code, AuthProvider.KAKAO);
+  }
+
+  @Post('sms/send')
+  @ApiOperation({ summary: 'SMS 인증 코드 전송' })
+  @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        accessToken: {
+        phoneNumber: {
           type: 'string',
-          description: '발급된 액세스 토큰',
-          example:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
-        },
-        refreshToken: {
-          type: 'string',
-          description: '발급된 리프레시 토큰',
-          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-        },
-        socialProvider: {
-          type: 'string',
-          description: '소셜 프로바이더',
-          example: 'kakao',
-        },
-        user: {
-          type: 'object',
-          properties: {
-            id: {
-              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
-            },
-            email: {
-              example: 'user@example.com',
-            },
-            name: {
-              example: '홍길동',
-            },
-            profileImage: {
-              example: 'https://example.com/profile.jpg',
-            },
-          },
+          description: '인증 코드를 받을 전화번호',
         },
       },
     },
   })
   @ApiResponse({
-    status: 401,
-    description: '인증 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 401 },
-        message: { type: 'string', example: '카카오 로그인 실패' },
-        error: { type: 'string', example: 'Unauthorized' },
-      },
-    },
+    status: 200,
+    description: '인증 코드 전송 성공',
+    schema: SendVerificationCodeResponseSchema,
   })
-  async kakaoLoginCallback(@Query('code') code: string) {
-    try {
-      if (!code) {
-        throw new UnauthorizedException('인가 코드가 없습니다.');
-      }
-
-      const kakaoTokens = await this.authService.getKakaoToken(code);
-      const kakaoUser = await this.authService.getKakaoUserInfo(
-        kakaoTokens.access_token,
-      );
-
-      const user = await this.authService.findOrCreateUser(
-        kakaoUser,
-        kakaoTokens.refresh_token,
-        AuthProvider.KAKAO,
-      );
-      const accessToken = this.authService.generateAccessToken(
-        user,
-        AuthProvider.KAKAO,
-      );
-
-      return {
-        accessToken,
-        refreshToken: kakaoTokens.refresh_token,
-        socialProvider: AuthProvider.KAKAO,
-        user: {
-          id: user.userUuid,
-          email: user.email,
-          name: user.name,
-          profileImage: user.profileImage,
-        },
-      };
-    } catch (error) {
-      console.error('Kakao login error:', error);
-      throw new UnauthorizedException('카카오 로그인 실패');
+  @ApiResponse({
+    status: 500,
+    description: '인증 코드 전송 실패',
+    schema: SendVerificationCodeErrorSchema,
+  })
+  async sendVerificationCode(@Body('phoneNumber') phoneNumber: string) {
+    const result = await this.authService.sendVerificationCode(phoneNumber);
+    if (!result) {
+      throw new InternalServerErrorException('인증 코드 전송에 실패했습니다');
     }
+    return { message: '인증 코드 전송 성공' };
+  }
+
+  @Post('sms/verify')
+  @ApiOperation({ summary: 'SMS 인증 코드 확인' })
+  @ApiResponse({
+    status: 200,
+    description: '인증 성공',
+    schema: VerifyCodeResponseSchema,
+  })
+  @ApiResponse({
+    status: 400,
+    description: '유효하지 않은 인증 코드',
+    schema: VerifyCodeErrorSchema,
+  })
+  verifyCode(@Body() verifyCodeDto: VerifyCodeDto) {
+    const { phoneNumber, code } = verifyCodeDto;
+    const isValid = this.authService.verifyCode(phoneNumber, code);
+    if (!isValid) {
+      throw new BadRequestException('유효하지 않은 인증 코드입니다.');
+    }
+    return { message: '인증 성공' };
+  }
+
+  @Post('basic/signup')
+  @ApiOperation({ summary: '일반 회원가입' })
+  @ApiResponse({
+    status: 201,
+    description: '회원가입 성공 및 로그인 상태(토큰 발행)',
+    schema: BasicSignupResponseSchema,
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  async signup(@Body() signupDto: BasicSignupDto) {
+    const { phoneNumber, verificationCode, name, email, profileImage } =
+      signupDto;
+
+    return await this.authService.signupWithPhoneNumber(
+      phoneNumber,
+      verificationCode,
+      name,
+      email,
+      profileImage,
+    );
+  }
+
+  @Post('basic/login')
+  @ApiOperation({ summary: '일반 로그인' })
+  @ApiResponse({
+    status: 200,
+    description: '로그인 성공',
+    schema: BasicLoginResponseSchema,
+  })
+  @ApiResponse({ status: 401, description: '인증 실패' })
+  async login(@Body() loginDto: BasicLoginDto) {
+    const { phoneNumber, verificationCode } = loginDto;
+    if (!this.authService.verifyCode(phoneNumber, verificationCode)) {
+      throw new UnauthorizedException('유효하지 않은 인증 코드입니다.');
+    }
+    const user = await this.authService.validateUserByPhoneNumber(phoneNumber);
+    const tokens = await this.authService.loginWithPhoneNumber(user);
+    return {
+      ...tokens,
+    };
   }
 
   @Post('refresh')
@@ -300,29 +254,12 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '토큰 갱신 성공, 리프레시 토큰은 옵셔널',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: {
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        },
-        refreshToken: {
-          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-        },
-      },
-    },
+    schema: RefreshAccessTokenResponseSchema,
   })
   @ApiResponse({
     status: 401,
     description: '인증 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 401 },
-        message: { type: 'string', example: '액세스 토큰 갱신 실패' },
-        error: { type: 'string', example: 'Unauthorized' },
-      },
-    },
+    schema: RefreshTokenErrorSchema,
   })
   async refreshToken(@Req() req, @Body() refreshTokenDto: RefreshTokenDto) {
     try {
@@ -357,104 +294,5 @@ export class AuthController {
   @ApiResponse({ status: 200, description: '로그아웃 성공' })
   async logout(@Req() req) {
     // 로그아웃 로직
-  }
-
-  @Post('sms/send')
-  @ApiOperation({ summary: 'SMS 인증 코드 전송' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        phoneNumber: {
-          type: 'string',
-          description: '인증 코드를 받을 전화번호',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 200,
-    description: '인증 코드 전송 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: '인증 코드 전송 성공',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 500,
-    description: '인증 코드 전송 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 500 },
-        message: { type: 'string', example: '인증 코드 전송에 실패했습니다' },
-        error: { type: 'string', example: 'Internal Server Error' },
-      },
-    },
-  })
-  async sendVerificationCode(@Body('phoneNumber') phoneNumber: string) {
-    const result = await this.authService.sendVerificationCode(phoneNumber);
-    if (!result) {
-      throw new InternalServerErrorException('인증 코드 전송에 실패했습니다');
-    }
-    return { message: '인증 코드 전송 성공' };
-  }
-
-  @Post('sms/verify')
-  @ApiOperation({ summary: 'SMS 인증 코드 확인' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        phoneNumber: {
-          type: 'string',
-          description: '인증 코드를 받은 전화번호',
-        },
-        code: {
-          type: 'string',
-          description: '수신한 인증 코드',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 200,
-    description: '인증 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: '인증 성공',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: '유효하지 않은 인증 코드',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 400 },
-        message: { type: 'string', example: '유효하지 않은 인증 코드입니다.' },
-        error: { type: 'string', example: 'Bad Request' },
-      },
-    },
-  })
-  verifyCode(
-    @Body('phoneNumber') phoneNumber: string,
-    @Body('code') code: string,
-  ) {
-    const isValid = this.authService.verifyCode(phoneNumber, code);
-    if (!isValid) {
-      throw new BadRequestException('유효하지 않은 인증 코드입니다.');
-    }
-    return { message: '인증 성공' };
   }
 }

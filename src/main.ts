@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import fs from 'fs';
 import session from 'express-session';
 import passport from 'passport';
+import 'reflect-metadata';
 
 declare const module: any;
 

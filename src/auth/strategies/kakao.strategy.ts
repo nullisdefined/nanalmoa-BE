@@ -21,8 +21,6 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
       clientSecret,
       callbackURL,
     });
-
-    console.log('Kakao Strategy initialized with:', { clientID, callbackURL });
   }
 
   async validate(
