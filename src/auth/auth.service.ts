@@ -69,7 +69,7 @@ export class AuthService {
     await this.userRepository.save(newUser);
 
     const newAuth = this.authRepository.create({
-      user: newUser,
+      userUuid: newUser.userUuid,
       authProvider: AuthProvider.BASIC,
     });
     await this.authRepository.save(newAuth);
@@ -98,7 +98,7 @@ export class AuthService {
 
     const auth = await this.authRepository.findOne({
       where: {
-        user: { userUuid: user.userUuid },
+        userUuid: user.userUuid,
         authProvider: AuthProvider.BASIC,
       },
     });
@@ -336,14 +336,17 @@ export class AuthService {
     });
 
     if (userAuth) {
+      const user = userAuth.user;
       // 사용자 정보 업데이트
-      userAuth.user.name = name || userAuth.user.name;
-      userAuth.user.profileImage = profileImage || userAuth.user.profileImage;
-      userAuth.user.email = email || userAuth.user.email;
+      user.name = name || user.name;
+      user.profileImage = profileImage || user.profileImage;
+      user.email = email || user.email;
+      await this.userRepository.save(user);
+
       userAuth.refreshToken = refreshToken;
-      await this.userRepository.save(userAuth.user);
       await this.authRepository.save(userAuth);
-      return userAuth.user;
+
+      return user;
     } else {
       // 새 사용자 등록
       const newUser = this.userRepository.create({
@@ -387,7 +390,7 @@ export class AuthService {
     }
 
     const auth = await this.authRepository.findOne({
-      where: { user: { userUuid }, authProvider: socialProvider },
+      where: { userUuid, authProvider: socialProvider },
     });
 
     if (!auth || auth.refreshToken !== refreshToken) {

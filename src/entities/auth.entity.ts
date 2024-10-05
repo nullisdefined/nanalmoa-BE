@@ -2,10 +2,10 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn,
-  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
 
@@ -20,8 +20,8 @@ export class Auth {
   @PrimaryGeneratedColumn()
   authId: number;
 
-  @Column({ name: 'user_id' })
-  userId: number;
+  @Column({ name: 'user_uuid' })
+  userUuid: string;
 
   @Column({ type: 'enum', enum: AuthProvider, name: 'auth_provider' })
   authProvider: AuthProvider;
@@ -38,7 +38,7 @@ export class Auth {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @ManyToOne(() => User, (user) => user.auths, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @ManyToOne(() => User, (user) => user.auths)
+  @JoinColumn({ name: 'user_uuid', referencedColumnName: 'userUuid' })
   user: User;
 }

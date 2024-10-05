@@ -26,6 +26,13 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { BasicSignupDto } from './dto/basic-signup.dto';
 import { BasicLoginDto } from './dto/basic-login.dto';
+import {
+  BasicLoginResponseSchema,
+  KakaoLoginResponseSchema,
+  NaverLoginResponseSchema,
+  RefreshTokenResponseSchema,
+} from './schema/response.schema';
+import { VerifyCodeDto } from './dto/verify-code.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -112,59 +119,11 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '네이버 로그인 인증 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: {
-          type: 'string',
-          description: '발급된 액세스 토큰',
-          example:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
-        },
-        refreshToken: {
-          type: 'string',
-          description: '발급된 리프레시 토큰',
-          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-        },
-        socialProvider: {
-          type: 'string',
-          description: '소셜 프로바이더',
-          example: 'naver',
-        },
-        user: {
-          type: 'object',
-          properties: {
-            id: {
-              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
-            },
-            email: {
-              example: 'user@example.com',
-            },
-            phoneNumber: {
-              example: '01012345678',
-            },
-            name: {
-              example: '홍길동',
-            },
-            profileImage: {
-              example: 'https://example.com/profile.jpg',
-            },
-          },
-        },
-      },
-    },
+    schema: NaverLoginResponseSchema,
   })
   @ApiResponse({
     status: 401,
     description: '인증 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 401 },
-        message: { type: 'string', example: '네이버 로그인 실패' },
-        error: { type: 'string', example: 'Unauthorized' },
-      },
-    },
   })
   async naverLoginCallback(@Query('code') code: string) {
     return this.handleSocialLogin(code, AuthProvider.NAVER);
@@ -181,59 +140,11 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '카카오 로그인 인증 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: {
-          type: 'string',
-          description: '발급된 액세스 토큰',
-          example:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
-        },
-        refreshToken: {
-          type: 'string',
-          description: '발급된 리프레시 토큰',
-          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-        },
-        socialProvider: {
-          type: 'string',
-          description: '소셜 프로바이더',
-          example: 'kakao',
-        },
-        user: {
-          type: 'object',
-          properties: {
-            id: {
-              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
-            },
-            email: {
-              example: 'user@example.com',
-            },
-            phoneNumber: {
-              example: '01012345678',
-            },
-            name: {
-              example: '홍길동',
-            },
-            profileImage: {
-              example: 'https://example.com/profile.jpg',
-            },
-          },
-        },
-      },
-    },
+    schema: KakaoLoginResponseSchema,
   })
   @ApiResponse({
     status: 401,
     description: '인증 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 401 },
-        message: { type: 'string', example: '카카오 로그인 실패' },
-        error: { type: 'string', example: 'Unauthorized' },
-      },
-    },
   })
   async kakaoLoginCallback(@Query('code') code: string) {
     return this.handleSocialLogin(code, AuthProvider.KAKAO);
@@ -287,21 +198,6 @@ export class AuthController {
 
   @Post('sms/verify')
   @ApiOperation({ summary: 'SMS 인증 코드 확인' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        phoneNumber: {
-          type: 'string',
-          description: '인증 코드를 받은 전화번호',
-        },
-        code: {
-          type: 'string',
-          description: '수신한 인증 코드',
-        },
-      },
-    },
-  })
   @ApiResponse({
     status: 200,
     description: '인증 성공',
@@ -327,10 +223,8 @@ export class AuthController {
       },
     },
   })
-  verifyCode(
-    @Body('phoneNumber') phoneNumber: string,
-    @Body('code') code: string,
-  ) {
+  verifyCode(@Body() verifyCodeDto: VerifyCodeDto) {
+    const { phoneNumber, code } = verifyCodeDto;
     const isValid = this.authService.verifyCode(phoneNumber, code);
     if (!isValid) {
       throw new BadRequestException('유효하지 않은 인증 코드입니다.');
@@ -396,37 +290,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '로그인 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: {
-          type: 'string',
-          description: '발급된 액세스 토큰',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        },
-        refreshToken: {
-          type: 'string',
-          description: '발급된 리프레시 토큰',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        },
-        user: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
-            },
-            phoneNumber: { type: 'string', example: '01012345678' },
-            name: { type: 'string', example: '홍길동' },
-            email: { type: 'string', example: null },
-            profileImage: {
-              type: 'string',
-              example: null,
-            },
-          },
-        },
-      },
-    },
+    schema: BasicLoginResponseSchema,
   })
   @ApiResponse({ status: 401, description: '인증 실패' })
   async login(@Body() loginDto: BasicLoginDto) {
@@ -455,17 +319,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '토큰 갱신 성공, 리프레시 토큰은 옵셔널',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: {
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        },
-        refreshToken: {
-          example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-        },
-      },
-    },
+    schema: RefreshTokenResponseSchema,
   })
   @ApiResponse({
     status: 401,
