@@ -115,3 +115,85 @@ export const RefreshTokenResponseSchema: SchemaObject = {
     },
   },
 };
+
+export const BasicSignupResponseSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    message: {
+      type: 'string',
+      example: '회원가입이 완료되었습니다.',
+    },
+    user: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
+        },
+        phoneNumber: {
+          type: 'string',
+          example: '01012345678',
+        },
+        name: {
+          type: 'string',
+          example: '홍길동',
+        },
+        email: {
+          type: 'string',
+          example: null,
+        },
+        profileImage: {
+          type: 'string',
+          example: null,
+        },
+      },
+    },
+  },
+};
+
+export const SendVerificationCodeResponseSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    message: {
+      type: 'string',
+      example: '인증 코드 전송 성공',
+    },
+  },
+};
+
+export const SendVerificationCodeErrorSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number', example: 500 },
+    message: { type: 'string', example: '인증 코드 전송에 실패했습니다' },
+    error: { type: 'string', example: 'Internal Server Error' },
+  },
+};
+
+export const VerifyCodeResponseSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    message: {
+      type: 'string',
+      example: '인증 성공',
+    },
+  },
+};
+
+export const VerifyCodeErrorSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number', example: 400 },
+    message: { type: 'string', example: '유효하지 않은 인증 코드입니다.' },
+    error: { type: 'string', example: 'Bad Request' },
+  },
+};
+
+export const RefreshTokenErrorSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number', example: 401 },
+    message: { type: 'string', example: '액세스 토큰 갱신 실패' },
+    error: { type: 'string', example: 'Unauthorized' },
+  },
+};

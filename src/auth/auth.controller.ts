@@ -28,9 +28,15 @@ import { BasicSignupDto } from './dto/basic-signup.dto';
 import { BasicLoginDto } from './dto/basic-login.dto';
 import {
   BasicLoginResponseSchema,
+  BasicSignupResponseSchema,
   KakaoLoginResponseSchema,
   NaverLoginResponseSchema,
   RefreshTokenResponseSchema,
+  SendVerificationCodeResponseSchema,
+  SendVerificationCodeErrorSchema,
+  VerifyCodeResponseSchema,
+  VerifyCodeErrorSchema,
+  RefreshTokenErrorSchema,
 } from './schema/response.schema';
 import { VerifyCodeDto } from './dto/verify-code.dto';
 
@@ -166,27 +172,12 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '인증 코드 전송 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: '인증 코드 전송 성공',
-        },
-      },
-    },
+    schema: SendVerificationCodeResponseSchema,
   })
   @ApiResponse({
     status: 500,
     description: '인증 코드 전송 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 500 },
-        message: { type: 'string', example: '인증 코드 전송에 실패했습니다' },
-        error: { type: 'string', example: 'Internal Server Error' },
-      },
-    },
+    schema: SendVerificationCodeErrorSchema,
   })
   async sendVerificationCode(@Body('phoneNumber') phoneNumber: string) {
     const result = await this.authService.sendVerificationCode(phoneNumber);
@@ -201,27 +192,12 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: '인증 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: '인증 성공',
-        },
-      },
-    },
+    schema: VerifyCodeResponseSchema,
   })
   @ApiResponse({
     status: 400,
     description: '유효하지 않은 인증 코드',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 400 },
-        message: { type: 'string', example: '유효하지 않은 인증 코드입니다.' },
-        error: { type: 'string', example: 'Bad Request' },
-      },
-    },
+    schema: VerifyCodeErrorSchema,
   })
   verifyCode(@Body() verifyCodeDto: VerifyCodeDto) {
     const { phoneNumber, code } = verifyCodeDto;
@@ -237,52 +213,20 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: '회원가입 성공',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: '회원가입이 완료되었습니다.' },
-        user: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
-            },
-            phoneNumber: { type: 'string', example: '01012345678' },
-            name: { type: 'string', example: '홍길동' },
-            email: { type: 'string', example: null },
-            profileImage: {
-              type: 'string',
-              example: null,
-            },
-          },
-        },
-      },
-    },
+    schema: BasicSignupResponseSchema,
   })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
   async signup(@Body() signupDto: BasicSignupDto) {
     const { phoneNumber, verificationCode, name, email, profileImage } =
       signupDto;
 
-    const user = await this.authService.signupWithPhoneNumber(
+    return await this.authService.signupWithPhoneNumber(
       phoneNumber,
       verificationCode,
       name,
       email,
       profileImage,
     );
-
-    return {
-      message: '회원가입이 완료되었습니다.',
-      user: {
-        id: user.userUuid,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        name: user.name,
-        profileImage: user.profileImage,
-      },
-    };
   }
 
   @Post('basic/login')
@@ -324,14 +268,7 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: '인증 실패',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 401 },
-        message: { type: 'string', example: '액세스 토큰 갱신 실패' },
-        error: { type: 'string', example: 'Unauthorized' },
-      },
-    },
+    schema: RefreshTokenErrorSchema,
   })
   async refreshToken(@Req() req, @Body() refreshTokenDto: RefreshTokenDto) {
     try {

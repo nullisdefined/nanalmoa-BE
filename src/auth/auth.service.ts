@@ -13,6 +13,16 @@ import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CoolSmsService } from './coolsms.service';
 import { ConfigService } from '@nestjs/config';
+import {
+  BasicSignupResponseDto,
+  KakaoTokenResponseDto,
+  LoginWithPhoneNumberResponseDto,
+  NaverTokenResponseDto,
+  RefreshAccessTokenResponseDto,
+  RefreshBasicTokenResponseDto,
+  RefreshKakaoTokenResponseDto,
+  RefreshNaverTokenResponseDto,
+} from './dto/response.dto';
 @Injectable()
 export class AuthService {
   constructor(
@@ -37,7 +47,7 @@ export class AuthService {
     name?: string,
     email?: string,
     profileImage?: string,
-  ): Promise<User> {
+  ): Promise<BasicSignupResponseDto> {
     const storedData = this.verificationCodes.get(phoneNumber);
     if (!storedData || !storedData.isVerified) {
       throw new BadRequestException('전화번호 인증이 필요합니다.');
@@ -76,7 +86,15 @@ export class AuthService {
 
     this.verificationCodes.delete(phoneNumber);
 
-    return newUser;
+    // 회원가입 후 로그인 처리
+    const { accessToken, refreshToken } =
+      await this.loginWithPhoneNumber(newUser);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: newUser,
+    };
   }
 
   async validateUserByPhoneNumber(phoneNumber: string): Promise<User> {
@@ -89,7 +107,7 @@ export class AuthService {
 
   async loginWithPhoneNumber(
     user: User,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<LoginWithPhoneNumberResponseDto> {
     const payload = { sub: user.userUuid, socialProvider: AuthProvider.BASIC };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
@@ -155,7 +173,7 @@ export class AuthService {
 
   private async refreshBasicToken(
     user: User,
-  ): Promise<{ refreshToken: string }> {
+  ): Promise<RefreshBasicTokenResponseDto> {
     const payload = { sub: user.userUuid, phoneNumber: user.phoneNumber };
     const refreshToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get('JWT_BASIC_REFRESH_EXPIRATION'),
@@ -163,9 +181,7 @@ export class AuthService {
     return { refreshToken };
   }
 
-  async getNaverToken(
-    code: string,
-  ): Promise<{ access_token: string; refresh_token: string }> {
+  async getNaverToken(code: string): Promise<NaverTokenResponseDto> {
     const tokenUrl = 'https://nid.naver.com/oauth2.0/token';
     const params = {
       grant_type: 'authorization_code',
@@ -177,40 +193,32 @@ export class AuthService {
 
     try {
       const response = await axios.post(tokenUrl, null, { params });
-      // console.log('*** response.data: ', response.data);
       return {
         access_token: response.data.access_token,
         refresh_token: response.data.refresh_token,
       };
     } catch (error) {
-      // console.error(
-      //   'Error getting Naver token:',
-      //   error.response?.data || error.message,
-      // );
-      throw new UnauthorizedException('네이버 토큰 획득 실패');
+      throw new UnauthorizedException('네이버 토큰 획득에 실패했습니다.');
     }
   }
 
   async getNaverUserInfo(accessToken: string): Promise<any> {
     const userInfoUrl = 'https://openapi.naver.com/v1/nid/me';
-    // console.log('*** accessToken: ', accessToken);
     try {
       const response = await axios.get(userInfoUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       return response.data.response;
     } catch (error) {
-      // console.error(
-      //   'Error getting Naver user info:',
-      //   error.response?.data || error.message,
-      // );
-      throw new UnauthorizedException('네이버 사용자 정보 획득 실패');
+      throw new UnauthorizedException(
+        '네이버 사용자 정보 획득에 실패했습니다.',
+      );
     }
   }
 
   async refreshNaverToken(
     refreshToken: string,
-  ): Promise<{ access_token: string; refresh_token?: string }> {
+  ): Promise<RefreshNaverTokenResponseDto> {
     const tokenUrl = 'https://nid.naver.com/oauth2.0/token';
     const params = {
       grant_type: 'refresh_token',
@@ -226,17 +234,11 @@ export class AuthService {
         refresh_token: response.data.refresh_token,
       };
     } catch (error) {
-      // console.error(
-      //   'Error refreshing Naver token:',
-      //   error.response?.data || error.message,
-      // );
-      throw new UnauthorizedException('네이버 토큰 갱신 실패');
+      throw new UnauthorizedException('네이버 토큰 갱신에 실패했습니다.');
     }
   }
 
-  async getKakaoToken(
-    code: string,
-  ): Promise<{ access_token: string; refresh_token: string }> {
+  async getKakaoToken(code: string): Promise<KakaoTokenResponseDto> {
     const tokenUrl = 'https://kauth.kakao.com/oauth/token';
     const params = {
       grant_type: 'authorization_code',
@@ -247,20 +249,13 @@ export class AuthService {
     };
 
     try {
-      // console.log('Requesting Kakao token with params:', params);
       const response = await axios.post(tokenUrl, null, { params });
-      // console.log('Kakao token response:', response.data);
       return {
         access_token: response.data.access_token,
         refresh_token: response.data.refresh_token,
       };
     } catch (error) {
-      // console.error(
-      //   'Error getting Kakao token:',
-      //   error.response?.data || error.message,
-      // );
-      // console.error('Error details:', error);
-      throw new UnauthorizedException('카카오 토큰 획득 실패');
+      throw new UnauthorizedException('카카오 토큰 획득에 실패했습니다.');
     }
   }
 
@@ -272,17 +267,15 @@ export class AuthService {
       });
       return response.data;
     } catch (error) {
-      // console.error(
-      //   'Error getting Kakao user info:',
-      //   error.response?.data || error.message,
-      // );
-      throw new UnauthorizedException('카카오 사용자 정보 획득 실패');
+      throw new UnauthorizedException(
+        '카카오 사용자 정보 획득에 실패했습니다.',
+      );
     }
   }
 
   async refreshKakaoToken(
     refreshToken: string,
-  ): Promise<{ access_token: string; refresh_token?: string }> {
+  ): Promise<RefreshKakaoTokenResponseDto> {
     const tokenUrl = 'https://kauth.kakao.com/oauth/token';
     const params = {
       grant_type: 'refresh_token',
@@ -298,11 +291,7 @@ export class AuthService {
         refresh_token: response.data.refresh_token, // 새 리프레시 토큰 발급
       };
     } catch (error) {
-      // console.error(
-      //   'Error refreshing Kakao token:',
-      //   error.response?.data || error.message,
-      // );
-      throw new UnauthorizedException('카카오 토큰 갱신 실패');
+      throw new UnauthorizedException('카카오 토큰 갱신에 실패했습니다.');
     }
   }
 
@@ -381,7 +370,7 @@ export class AuthService {
     userUuid: string,
     refreshToken: string,
     socialProvider: AuthProvider,
-  ): Promise<{ accessToken: string; refreshToken?: string }> {
+  ): Promise<RefreshAccessTokenResponseDto> {
     const user = await this.userRepository.findOne({
       where: { userUuid },
     });
