@@ -9,11 +9,12 @@ import {
   GetInvitationSendDto,
 } from './dto/get-invitation.dto';
 import { CreateManagerSubordinateDto } from './dto/create-manager.dto';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 
 @ApiTags('Manager')
 @Controller('manager')
 export class ManagerController {
-  constructor(private readonly managerInvitationService: ManagerService) {}
+  constructor(private readonly managerService: ManagerService) {}
 
   @Post('invitation')
   @ApiOperation({ summary: '새로운 관리자 초대 생성' })
@@ -25,7 +26,7 @@ export class ManagerController {
   async createInvitation(
     @Body() createInvitationDto: CreateInvitationDto,
   ): Promise<ManagerInvitation> {
-    return this.managerInvitationService.createInvitation(createInvitationDto);
+    return this.managerService.createInvitation(createInvitationDto);
   }
 
   @Get('invitation/send')
@@ -38,9 +39,7 @@ export class ManagerController {
   async getInvitationSend(
     @Query() getInvitationSendDto: GetInvitationSendDto,
   ): Promise<ManagerInvitation[]> {
-    return this.managerInvitationService.getInvitationSend(
-      getInvitationSendDto,
-    );
+    return this.managerService.getInvitationSend(getInvitationSendDto);
   }
 
   @Get('invitation/received')
@@ -53,9 +52,7 @@ export class ManagerController {
   async getInvitationReceived(
     @Query() getInvitationReceivedDto: GetInvitationReceivedDto,
   ): Promise<ManagerInvitation[]> {
-    return this.managerInvitationService.getInvitationReceived(
-      getInvitationReceivedDto,
-    );
+    return this.managerService.getInvitationReceived(getInvitationReceivedDto);
   }
 
   @Get('invitation/user')
@@ -68,9 +65,7 @@ export class ManagerController {
   async getInvitationUsers(
     @Query() createManagerSubordinateDto: CreateManagerSubordinateDto,
   ): Promise<ManagerInvitation> {
-    return this.managerInvitationService.getInvitationUsers(
-      createManagerSubordinateDto,
-    );
+    return this.managerService.getInvitationUsers(createManagerSubordinateDto);
   }
 
   @Get('invitation/:id')
@@ -81,7 +76,7 @@ export class ManagerController {
     type: ManagerInvitation,
   })
   async getInvitation(@Param('id') id: number): Promise<ManagerInvitation> {
-    return this.managerInvitationService.getInvitation(id);
+    return this.managerService.getInvitation(id);
   }
 
   @Put('invitation/:id/status')
@@ -95,9 +90,35 @@ export class ManagerController {
     @Param('id') id: number,
     @Body() updateInvitationStatusDto: UpdateInvitationStatusDto,
   ): Promise<ManagerInvitation> {
-    return this.managerInvitationService.updateInvitationStatus(
+    return this.managerService.updateInvitationStatus(
       id,
       updateInvitationStatusDto,
     );
+  }
+
+  @Get('managers')
+  @ApiOperation({ summary: '자신의 관리자 목록 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '관리자 목록 조회 성공',
+    type: [UserResponseDto],
+  })
+  async getManagerList(
+    @Query('subordinateUuid') subordinateUuid: string,
+  ): Promise<UserResponseDto[]> {
+    return this.managerService.getManagerList(subordinateUuid);
+  }
+
+  @Get('subordinates')
+  @ApiOperation({ summary: '자신의 피관리자 목록 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '피관리자 목록 조회 성공',
+    type: [UserResponseDto],
+  })
+  async getSubordinateList(
+    @Query('managerUuid') managerUuid: string,
+  ): Promise<UserResponseDto[]> {
+    return this.managerService.getSubordinateList(managerUuid);
   }
 }
