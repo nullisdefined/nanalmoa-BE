@@ -1,9 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export enum InvitationStatus {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  REJECTED = 'REJECTED',
+  PENDING = 'PENDING', // 초대가 발송되었지만, 아직 응답하지 않은 상태
+  ACCEPTED = 'ACCEPTED', // 초대가 수락되어 매니저로 등록된 상태
+  REJECTED = 'REJECTED', // 초대가 거절된 상태
+  CANCELED = 'CANCELED', // 초대가 철회된 상태
+  REMOVED = 'REMOVED', // 등록된 매니저가 삭제된 상태 (매니저 테이블에서 제거됨)
 }
 
 @Entity('manager_invitation')
@@ -25,9 +33,9 @@ export class ManagerInvitation {
   })
   status: InvitationStatus;
 
-  @Column({
-    name: 'expired_at',
-    type: 'timestamp',
-  })
-  expiredAt: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

@@ -13,7 +13,4 @@ export class InvitationResponseDto {
 
   @ApiProperty({ enum: InvitationStatus, description: '초대 상태' })
   status: InvitationStatus;
-
-  @ApiProperty({ description: '초대 만료 날짜' })
-  expiredAt: Date;
 }
