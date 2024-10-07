@@ -20,6 +20,7 @@ import { ManagerInvitation } from 'src/entities/manager-invitation.entity';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
+import { InvitationResponseDto } from './dto/response-invitation.dto';
 
 @ApiTags('Manager')
 @Controller('manager')
@@ -33,12 +34,12 @@ export class ManagerController {
   @ApiResponse({
     status: 201,
     description: '초대가 성공적으로 생성됨',
-    type: ManagerInvitation,
+    type: InvitationResponseDto,
   })
   async createInvitation(
     @Query('subordinateUuid') subordinateUuid: string,
     @Req() req: Request,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     const managerUuid = req.user['userUuid'];
     return this.managerService.createInvitation({
       managerUuid,
@@ -51,9 +52,11 @@ export class ManagerController {
   @ApiResponse({
     status: 200,
     description: '초대 보낸 정보 조회 성공',
-    type: [ManagerInvitation],
+    type: [InvitationResponseDto],
   })
-  async getInvitationSend(@Req() req: Request): Promise<ManagerInvitation[]> {
+  async getInvitationSend(
+    @Req() req: Request,
+  ): Promise<InvitationResponseDto[]> {
     const managerUuid = req.user['userUuid'];
     return this.managerService.getInvitationSend({ managerUuid });
   }
@@ -63,11 +66,11 @@ export class ManagerController {
   @ApiResponse({
     status: 200,
     description: '초대 받은 정보 조회 성공',
-    type: [ManagerInvitation],
+    type: [InvitationResponseDto],
   })
   async getInvitationReceived(
     @Req() req: Request,
-  ): Promise<ManagerInvitation[]> {
+  ): Promise<InvitationResponseDto[]> {
     const subordinateUuid = req.user['userUuid'];
     return this.managerService.getInvitationReceived({ subordinateUuid });
   }
@@ -77,14 +80,12 @@ export class ManagerController {
   @ApiResponse({
     status: 200,
     description: '두 유저의 초대 상태',
-    type: ManagerInvitation,
+    type: InvitationResponseDto,
   })
   async getInvitationUsers(
     @Query('managerUuid') managerUuid: string,
     @Query('subordinateUuid') subordinateUuid: string,
-    @Req() req: Request,
-  ): Promise<ManagerInvitation> {
-    //const managerUuid = req.user['userUuid'];
+  ): Promise<InvitationResponseDto> {
     return this.managerService.getInvitationUsers({
       managerUuid,
       subordinateUuid,
@@ -96,9 +97,9 @@ export class ManagerController {
   @ApiResponse({
     status: 200,
     description: '초대 정보 조회 성공',
-    type: ManagerInvitation,
+    type: InvitationResponseDto,
   })
-  async getInvitation(@Param('id') id: number): Promise<ManagerInvitation> {
+  async getInvitation(@Param('id') id: number): Promise<InvitationResponseDto> {
     return this.managerService.getInvitation(id);
   }
 
@@ -112,7 +113,7 @@ export class ManagerController {
   async acceptInvitation(
     @Param('id') id: number,
     @Req() req: Request,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     const subordinateUuid = req.user['userUuid'];
     return this.managerService.acceptInvitation(id, subordinateUuid);
   }
@@ -122,12 +123,12 @@ export class ManagerController {
   @ApiResponse({
     status: 200,
     description: '초대가 성공적으로 거절됨',
-    type: ManagerInvitation,
+    type: InvitationResponseDto,
   })
   async rejectInvitation(
     @Param('id') id: number,
     @Req() req: Request,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     const subordinateUuid = req.user['userUuid'];
     return this.managerService.rejectInvitation(id, subordinateUuid);
   }
@@ -142,7 +143,7 @@ export class ManagerController {
   async cancelInvitation(
     @Param('id') id: number,
     @Req() req: Request,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     const managerUuid = req.user['userUuid'];
     return this.managerService.cancelInvitation(id, managerUuid);
   }

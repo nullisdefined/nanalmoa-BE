@@ -6,11 +6,17 @@ export class InvitationResponseDto {
   managerInvitationId: number;
 
   @ApiProperty({ description: '초대자 UUID' })
-  inviterUuid: string;
+  managerUuid: string;
 
   @ApiProperty({ description: '초대받은 사용자 UUID' })
-  inviteeUuid: string;
+  subordinateUuid: string;
 
   @ApiProperty({ enum: InvitationStatus, description: '초대 상태' })
   status: InvitationStatus;
+
+  @ApiProperty({ description: '초대 생성 일시' })
+  createdAt: Date;
+
+  @ApiProperty({ description: '초대 상태 최종 업데이트 일시' })
+  updatedAt: Date;
 }

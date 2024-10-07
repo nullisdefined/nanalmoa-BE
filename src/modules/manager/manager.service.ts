@@ -21,6 +21,7 @@ import {
 import { CreateManagerSubordinateDto } from './dto/create-manager.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { UsersService } from '../users/users.service';
+import { InvitationResponseDto } from './dto/response-invitation.dto';
 
 @Injectable()
 export class ManagerService {
@@ -40,10 +41,6 @@ export class ManagerService {
       this.usersService.checkUserExists(createInvitationDto.managerUuid),
       this.usersService.checkUserExists(createInvitationDto.subordinateUuid),
     ]);
-    console.log(
-      createInvitationDto.managerUuid,
-      createInvitationDto.subordinateUuid,
-    );
     if (!managerExists) {
       throw new NotFoundException(
         `관리자 UUID ${createInvitationDto.managerUuid}를 찾을 수 없습니다.`,
@@ -65,7 +62,7 @@ export class ManagerService {
     }
   }
 
-  async getInvitation(id: number): Promise<ManagerInvitation> {
+  async getInvitation(id: number): Promise<InvitationResponseDto> {
     if (isNaN(id)) {
       throw new BadRequestException('유효하지 않은 초대장 ID입니다.');
     }
@@ -80,7 +77,7 @@ export class ManagerService {
 
   async createInvitation(
     createInvitationDto: CreateInvitationDto,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     try {
       await this.validateUsers(createInvitationDto);
       const { managerUuid, subordinateUuid } = createInvitationDto;
@@ -126,7 +123,7 @@ export class ManagerService {
   async acceptInvitation(
     id: number,
     subordinateUuid: string,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     const invitation = await this.getInvitation(id);
 
     if (invitation.subordinateUuid !== subordinateUuid) {
@@ -147,7 +144,7 @@ export class ManagerService {
   async rejectInvitation(
     id: number,
     subordinateUuid: string,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     const invitation = await this.getInvitation(id);
 
     if (invitation.subordinateUuid !== subordinateUuid) {
@@ -165,7 +162,7 @@ export class ManagerService {
   async cancelInvitation(
     id: number,
     managerUuid: string,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     const invitation = await this.getInvitation(id);
 
     if (invitation.managerUuid !== managerUuid) {
@@ -268,7 +265,7 @@ export class ManagerService {
 
   async getInvitationUsers(
     createManagerSubordinateDto: CreateManagerSubordinateDto,
-  ): Promise<ManagerInvitation> {
+  ): Promise<InvitationResponseDto> {
     try {
       const invitation = await this.managerInvitationRepository.findOne({
         where: {
