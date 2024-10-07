@@ -45,6 +45,14 @@ async function bootstrap() {
     .setTitle('Nanalmoa API')
     .setDescription('나날모아 서비스 개발을 위한 API 문서입니다.')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+      'access-token',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
 

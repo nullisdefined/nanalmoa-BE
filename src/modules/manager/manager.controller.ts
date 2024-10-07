@@ -1,18 +1,32 @@
-import { Controller, Post, Body, Param, Put, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Get,
+  Query,
+  Delete,
+  UseGuards,
+  Patch,
+  Req,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ManagerService } from './manager.service';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
-import { UpdateInvitationStatusDto } from './dto/update-invitation.dto';
 import { ManagerInvitation } from 'src/entities/manager-invitation.entity';
-import {
-  GetInvitationReceivedDto,
-  GetInvitationSendDto,
-} from './dto/get-invitation.dto';
-import { CreateManagerSubordinateDto } from './dto/create-manager.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { Request } from 'express';
 
 @ApiTags('Manager')
 @Controller('manager')
+@UseGuards(AuthGuard('jwt'))
+@ApiBearerAuth()
 export class ManagerController {
   constructor(private readonly managerService: ManagerService) {}
 
@@ -25,8 +39,13 @@ export class ManagerController {
   })
   async createInvitation(
     @Body() createInvitationDto: CreateInvitationDto,
+    @Req() req: Request,
   ): Promise<ManagerInvitation> {
-    return this.managerService.createInvitation(createInvitationDto);
+    const managerUuid = req.user['userUuid'];
+    return this.managerService.createInvitation({
+      ...createInvitationDto,
+      managerUuid,
+    });
   }
 
   @Get('invitation/send')
@@ -36,10 +55,9 @@ export class ManagerController {
     description: '초대 보낸 정보 조회 성공',
     type: [ManagerInvitation],
   })
-  async getInvitationSend(
-    @Query() getInvitationSendDto: GetInvitationSendDto,
-  ): Promise<ManagerInvitation[]> {
-    return this.managerService.getInvitationSend(getInvitationSendDto);
+  async getInvitationSend(@Req() req: Request): Promise<ManagerInvitation[]> {
+    const managerUuid = req.user['userUuid'];
+    return this.managerService.getInvitationSend({ managerUuid });
   }
 
   @Get('invitation/received')
@@ -50,9 +68,10 @@ export class ManagerController {
     type: [ManagerInvitation],
   })
   async getInvitationReceived(
-    @Query() getInvitationReceivedDto: GetInvitationReceivedDto,
+    @Req() req: Request,
   ): Promise<ManagerInvitation[]> {
-    return this.managerService.getInvitationReceived(getInvitationReceivedDto);
+    const subordinateUuid = req.user['userUuid'];
+    return this.managerService.getInvitationReceived({ subordinateUuid });
   }
 
   @Get('invitation/user')
@@ -63,9 +82,14 @@ export class ManagerController {
     type: ManagerInvitation,
   })
   async getInvitationUsers(
-    @Query() createManagerSubordinateDto: CreateManagerSubordinateDto,
+    @Query('subordinateUuid') subordinateUuid: string,
+    @Req() req: Request,
   ): Promise<ManagerInvitation> {
-    return this.managerService.getInvitationUsers(createManagerSubordinateDto);
+    const managerUuid = req.user['userUuid'];
+    return this.managerService.getInvitationUsers({
+      managerUuid,
+      subordinateUuid,
+    });
   }
 
   @Get('invitation/:id')
@@ -79,20 +103,65 @@ export class ManagerController {
     return this.managerService.getInvitation(id);
   }
 
-  @Put('invitation/:id/status')
-  @ApiOperation({ summary: '초대 상태 업데이트' })
+  @Patch(':id/accept')
+  @ApiOperation({ summary: '초대 수락' })
   @ApiResponse({
     status: 200,
-    description: '초대 상태가 성공적으로 업데이트됨',
+    description: '초대가 성공적으로 수락됨',
     type: ManagerInvitation,
   })
-  async updateInvitationStatus(
+  async acceptInvitation(
     @Param('id') id: number,
-    @Body() updateInvitationStatusDto: UpdateInvitationStatusDto,
+    @Req() req: Request,
   ): Promise<ManagerInvitation> {
-    return this.managerService.updateInvitationStatus(
-      id,
-      updateInvitationStatusDto,
+    const subordinateUuid = req.user['userUuid'];
+    return this.managerService.acceptInvitation(id, subordinateUuid);
+  }
+
+  @Patch(':id/reject')
+  @ApiOperation({ summary: '초대 거절' })
+  @ApiResponse({
+    status: 200,
+    description: '초대가 성공적으로 거절됨',
+    type: ManagerInvitation,
+  })
+  async rejectInvitation(
+    @Param('id') id: number,
+    @Req() req: Request,
+  ): Promise<ManagerInvitation> {
+    const subordinateUuid = req.user['userUuid'];
+    return this.managerService.rejectInvitation(id, subordinateUuid);
+  }
+
+  @Patch(':id/cancel')
+  @ApiOperation({ summary: '초대 철회' })
+  @ApiResponse({
+    status: 200,
+    description: '초대가 성공적으로 철회됨',
+    type: ManagerInvitation,
+  })
+  async cancelInvitation(
+    @Param('id') id: number,
+    @Req() req: Request,
+  ): Promise<ManagerInvitation> {
+    const managerUuid = req.user['userUuid'];
+    return this.managerService.cancelInvitation(id, managerUuid);
+  }
+
+  @Delete(':subordinateUuid')
+  @ApiOperation({ summary: '관리자-피관리자 관계 제거' })
+  @ApiResponse({
+    status: 200,
+    description: '관리자-피관리자 관계가 성공적으로 제거됨',
+  })
+  async removeManagerSubordinate(
+    @Param('subordinateUuid') subordinateUuid: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const managerUuid = req.user['userUuid'];
+    return this.managerService.removeManagerSubordinate(
+      managerUuid,
+      subordinateUuid,
     );
   }
 
@@ -103,9 +172,8 @@ export class ManagerController {
     description: '관리자 목록 조회 성공',
     type: [UserResponseDto],
   })
-  async getManagerList(
-    @Query('subordinateUuid') subordinateUuid: string,
-  ): Promise<UserResponseDto[]> {
+  async getManagerList(@Req() req: Request): Promise<UserResponseDto[]> {
+    const subordinateUuid = req.user['userUuid'];
     return this.managerService.getManagerList(subordinateUuid);
   }
 
@@ -116,9 +184,8 @@ export class ManagerController {
     description: '피관리자 목록 조회 성공',
     type: [UserResponseDto],
   })
-  async getSubordinateList(
-    @Query('managerUuid') managerUuid: string,
-  ): Promise<UserResponseDto[]> {
+  async getSubordinateList(@Req() req: Request): Promise<UserResponseDto[]> {
+    const managerUuid = req.user['userUuid'];
     return this.managerService.getSubordinateList(managerUuid);
   }
 }

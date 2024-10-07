@@ -4,23 +4,23 @@ import {
   BadRequestException,
   Logger,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   ManagerInvitation,
   InvitationStatus,
 } from 'src/entities/manager-invitation.entity';
 import { ManagerSubordinate } from 'src/entities/manager-subordinate.entity';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
-import { UpdateInvitationStatusDto } from './dto/update-invitation.dto';
 import {
   GetInvitationReceivedDto,
   GetInvitationSendDto,
 } from './dto/get-invitation.dto';
 import { CreateManagerSubordinateDto } from './dto/create-manager.dto';
-import { User } from '@/entities/user.entity';
 import { UserResponseDto } from '../users/dto/user-response.dto';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ManagerService {
@@ -30,21 +30,26 @@ export class ManagerService {
     private managerInvitationRepository: Repository<ManagerInvitation>,
     @InjectRepository(ManagerSubordinate)
     private managerSubordinateRepository: Repository<ManagerSubordinate>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    private usersService: UsersService,
   ) {}
 
-  async createInvitation(
+  private async validateUsers(
     createInvitationDto: CreateInvitationDto,
-  ): Promise<ManagerInvitation> {
-    try {
-      const invitation =
-        this.managerInvitationRepository.create(createInvitationDto);
-      return await this.managerInvitationRepository.save(invitation);
-    } catch (error) {
-      this.logger.error(`초대장 생성 실패: ${error.message}`, error.stack);
-      throw new InternalServerErrorException(
-        '초대장 생성 중 오류가 발생했습니다.',
+  ): Promise<void> {
+    const [managerExists, subordinateExists] = await Promise.all([
+      this.usersService.checkUserExists(createInvitationDto.managerUuid),
+      this.usersService.checkUserExists(createInvitationDto.subordinateUuid),
+    ]);
+
+    if (!managerExists) {
+      throw new NotFoundException(
+        `관리자 UUID ${createInvitationDto.managerUuid}를 찾을 수 없습니다.`,
+      );
+    }
+
+    if (!subordinateExists) {
+      throw new NotFoundException(
+        `피관리자 UUID ${createInvitationDto.subordinateUuid}를 찾을 수 없습니다.`,
       );
     }
   }
@@ -62,26 +67,134 @@ export class ManagerService {
     return invitation;
   }
 
-  async updateInvitationStatus(
+  async createInvitation(
+    createInvitationDto: CreateInvitationDto,
+  ): Promise<ManagerInvitation> {
+    try {
+      await this.validateUsers(createInvitationDto);
+      const { managerUuid, subordinateUuid } = createInvitationDto;
+
+      const existingInvitation = await this.managerInvitationRepository.findOne(
+        {
+          where: {
+            managerUuid,
+            subordinateUuid,
+            status: InvitationStatus.PENDING,
+          },
+        },
+      );
+
+      if (existingInvitation) {
+        throw new BadRequestException('이미 대기 중인 초대가 있습니다.');
+      }
+
+      const existingRelation = await this.managerSubordinateRepository.findOne({
+        where: { managerUuid, subordinateUuid },
+      });
+
+      if (existingRelation) {
+        throw new BadRequestException(
+          '이미 관리자-피관리자 관계가 존재합니다.',
+        );
+      }
+
+      const invitation = this.managerInvitationRepository.create({
+        managerUuid,
+        subordinateUuid,
+        status: InvitationStatus.PENDING,
+      });
+
+      return await this.managerInvitationRepository.save(invitation);
+    } catch (error) {
+      this.logger.error(`초대장 생성 실패: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(
+        '초대장 생성 중 오류가 발생했습니다.',
+      );
+    }
+  }
+  async acceptInvitation(
     id: number,
-    updateInvitationStatusDto: UpdateInvitationStatusDto,
+    subordinateUuid: string,
   ): Promise<ManagerInvitation> {
     const invitation = await this.getInvitation(id);
 
+    if (invitation.subordinateUuid !== subordinateUuid) {
+      throw new ForbiddenException('초대를 수락할 권한이 없습니다.');
+    }
+
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new BadRequestException(
-        `ID가 ${id}인 초대장은 이미 ${invitation.status} 상태입니다.`,
-      );
+      throw new BadRequestException('대기 중인 초대만 수락할 수 있습니다.');
     }
 
-    invitation.status = updateInvitationStatusDto.status;
+    invitation.status = InvitationStatus.ACCEPTED;
     await this.managerInvitationRepository.save(invitation);
-
-    if (updateInvitationStatusDto.status === InvitationStatus.ACCEPTED) {
-      await this.createManagerSubordinate(invitation);
-    }
+    await this.createManagerSubordinate(invitation);
 
     return invitation;
+  }
+
+  async rejectInvitation(
+    id: number,
+    subordinateUuid: string,
+  ): Promise<ManagerInvitation> {
+    const invitation = await this.getInvitation(id);
+
+    if (invitation.subordinateUuid !== subordinateUuid) {
+      throw new ForbiddenException('초대를 거절할 권한이 없습니다.');
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestException('대기 중인 초대만 거절할 수 있습니다.');
+    }
+
+    invitation.status = InvitationStatus.REJECTED;
+    return await this.managerInvitationRepository.save(invitation);
+  }
+
+  async cancelInvitation(
+    id: number,
+    managerUuid: string,
+  ): Promise<ManagerInvitation> {
+    const invitation = await this.getInvitation(id);
+
+    if (invitation.managerUuid !== managerUuid) {
+      throw new ForbiddenException('초대를 철회할 권한이 없습니다.');
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestException('대기 중인 초대만 철회할 수 있습니다.');
+    }
+
+    invitation.status = InvitationStatus.CANCELED;
+    return await this.managerInvitationRepository.save(invitation);
+  }
+
+  async removeManagerSubordinate(
+    managerUuid: string,
+    subordinateUuid: string,
+  ): Promise<void> {
+    const relation = await this.managerSubordinateRepository.findOne({
+      where: { managerUuid, subordinateUuid },
+    });
+
+    if (!relation) {
+      throw new NotFoundException('관리자-피관리자 관계를 찾을 수 없습니다.');
+    }
+
+    await this.managerSubordinateRepository.remove(relation);
+
+    const invitation = await this.managerInvitationRepository.findOne({
+      where: {
+        managerUuid,
+        subordinateUuid,
+        status: InvitationStatus.ACCEPTED,
+      },
+    });
+
+    if (invitation) {
+      invitation.status = InvitationStatus.REMOVED;
+      await this.managerInvitationRepository.save(invitation);
+    }
   }
 
   private async createManagerSubordinate(
@@ -184,9 +297,7 @@ export class ManagerService {
       });
 
       const managerUuids = managerSubordinates.map((ms) => ms.managerUuid);
-      const managers = await this.userRepository.findBy({
-        userUuid: In(managerUuids),
-      });
+      const managers = await this.usersService.getUsersByUuids(managerUuids);
 
       this.logger.log(
         `사용자 ${subordinateUuid}의 관리자 ${managers.length}명을 조회했습니다.`,
@@ -209,9 +320,8 @@ export class ManagerService {
       const subordinateUuids = managerSubordinates.map(
         (ms) => ms.subordinateUuid,
       );
-      const subordinates = await this.userRepository.findBy({
-        userUuid: In(subordinateUuids),
-      });
+      const subordinates =
+        await this.usersService.getUsersByUuids(subordinateUuids);
 
       this.logger.log(
         `관리자 ${managerUuid}의 피관리자 ${subordinates.length}명을 조회했습니다.`,
