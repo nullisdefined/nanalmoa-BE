@@ -12,11 +12,12 @@ import { UserResponseSchema } from './schema/response.schema';
 @ApiTags('Users')
 @Controller('users')
 @UseGuards(AuthGuard('jwt'))
+@ApiBearerAuth('Access-Token')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
-  @ApiBearerAuth()
+  @ApiBearerAuth('Access-Token')
   @ApiOperation({ summary: '현재 로그인한 사용자 정보 조회' })
   @ApiResponse({
     status: 200,

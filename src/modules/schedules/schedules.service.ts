@@ -41,6 +41,14 @@ export class SchedulesService {
       apiKey: openaiApiKey,
     });
   }
+  private adjustDateForAllDay(startDate: Date, endDate: Date): [Date, Date] {
+    const adjustedStartDate = new Date(startDate);
+    adjustedStartDate.setUTCHours(0, 0, 0, 0);
+
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setUTCHours(23, 59, 59, 999);
+    return [adjustedStartDate, adjustedEndDate];
+  }
 
   private async getCategoryById(categoryId: number): Promise<Category> {
     const category = await this.categoryRepository.findOne({
@@ -61,7 +69,12 @@ export class SchedulesService {
   ): Promise<ResponseScheduleDto> {
     const categoryId = createScheduleDto.categoryId ?? 7;
     const category = await this.getCategoryById(categoryId);
-
+    if (createScheduleDto.isAllDay) {
+      this.adjustDateForAllDay(
+        createScheduleDto.startDate,
+        createScheduleDto.endDate,
+      );
+    }
     const newSchedule = this.schedulesRepository.create({
       ...createScheduleDto,
       category: category, // Category 객체 할당합니다.

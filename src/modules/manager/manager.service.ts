@@ -40,7 +40,10 @@ export class ManagerService {
       this.usersService.checkUserExists(createInvitationDto.managerUuid),
       this.usersService.checkUserExists(createInvitationDto.subordinateUuid),
     ]);
-
+    console.log(
+      createInvitationDto.managerUuid,
+      createInvitationDto.subordinateUuid,
+    );
     if (!managerExists) {
       throw new NotFoundException(
         `관리자 UUID ${createInvitationDto.managerUuid}를 찾을 수 없습니다.`,
@@ -50,6 +53,14 @@ export class ManagerService {
     if (!subordinateExists) {
       throw new NotFoundException(
         `피관리자 UUID ${createInvitationDto.subordinateUuid}를 찾을 수 없습니다.`,
+      );
+    }
+
+    if (
+      createInvitationDto.managerUuid === createInvitationDto.subordinateUuid
+    ) {
+      throw new BadRequestException(
+        `관리자 UUID ${createInvitationDto.managerUuid}와 피관리자 UUID ${createInvitationDto.managerUuid}를 같게 설정할 수 없습니다.`,
       );
     }
   }

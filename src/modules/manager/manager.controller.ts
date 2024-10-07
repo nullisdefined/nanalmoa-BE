@@ -26,7 +26,7 @@ import { Request } from 'express';
 @ApiTags('Manager')
 @Controller('manager')
 @UseGuards(AuthGuard('jwt'))
-@ApiBearerAuth()
+@ApiBearerAuth('Access-Token')
 export class ManagerController {
   constructor(private readonly managerService: ManagerService) {}
 
@@ -38,18 +38,18 @@ export class ManagerController {
     type: ManagerInvitation,
   })
   async createInvitation(
-    @Body() createInvitationDto: CreateInvitationDto,
+    @Query('subordinateUuid') subordinateUuid: string,
     @Req() req: Request,
   ): Promise<ManagerInvitation> {
     const managerUuid = req.user['userUuid'];
     return this.managerService.createInvitation({
-      ...createInvitationDto,
       managerUuid,
+      subordinateUuid,
     });
   }
 
   @Get('invitation/send')
-  @ApiOperation({ summary: '특정 유저가 보낸 초대 현황' })
+  @ApiOperation({ summary: '내가 보낸 초대 현황' })
   @ApiResponse({
     status: 200,
     description: '초대 보낸 정보 조회 성공',
@@ -61,7 +61,7 @@ export class ManagerController {
   }
 
   @Get('invitation/received')
-  @ApiOperation({ summary: '특정 유저가 받은 초대 현황' })
+  @ApiOperation({ summary: '내가 받은 초대 현황' })
   @ApiResponse({
     status: 200,
     description: '초대 받은 정보 조회 성공',
@@ -75,17 +75,18 @@ export class ManagerController {
   }
 
   @Get('invitation/user')
-  @ApiOperation({ summary: '보낸 유저와 받은 유저 초대 현황' })
+  @ApiOperation({ summary: '보낸 유저와 받은 유저 초대 현황(삭제 예정)' })
   @ApiResponse({
     status: 200,
     description: '두 유저의 초대 상태',
     type: ManagerInvitation,
   })
   async getInvitationUsers(
+    @Query('managerUuid') managerUuid: string,
     @Query('subordinateUuid') subordinateUuid: string,
     @Req() req: Request,
   ): Promise<ManagerInvitation> {
-    const managerUuid = req.user['userUuid'];
+    //const managerUuid = req.user['userUuid'];
     return this.managerService.getInvitationUsers({
       managerUuid,
       subordinateUuid,
