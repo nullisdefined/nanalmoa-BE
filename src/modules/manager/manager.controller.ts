@@ -1,7 +1,6 @@
 import {
   Controller,
   Post,
-  Body,
   Param,
   Get,
   Query,
@@ -17,7 +16,6 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ManagerService } from './manager.service';
-import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { ManagerInvitation } from 'src/entities/manager-invitation.entity';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -149,17 +147,34 @@ export class ManagerController {
     return this.managerService.cancelInvitation(id, managerUuid);
   }
 
-  @Delete(':subordinateUuid')
-  @ApiOperation({ summary: '관리자-피관리자 관계 제거' })
+  @Delete('subordinate/:subordinateUuid')
+  @ApiOperation({ summary: '내가 관리자일 때, 관리자-피관리자 관계 제거' })
   @ApiResponse({
     status: 200,
     description: '관리자-피관리자 관계가 성공적으로 제거됨',
   })
-  async removeManagerSubordinate(
+  async removeSubordinate(
     @Param('subordinateUuid') subordinateUuid: string,
     @Req() req: Request,
   ): Promise<void> {
     const managerUuid = req.user['userUuid'];
+    return this.managerService.removeManagerSubordinate(
+      managerUuid,
+      subordinateUuid,
+    );
+  }
+
+  @Delete('manager/:managerUuid')
+  @ApiOperation({ summary: '내가 피관리자일 때, 관리자-피관리자 관계 제거' })
+  @ApiResponse({
+    status: 200,
+    description: '관리자-피관리자 관계가 성공적으로 제거됨',
+  })
+  async removeManager(
+    @Param('managerUuid') managerUuid: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const subordinateUuid = req.user['userUuid'];
     return this.managerService.removeManagerSubordinate(
       managerUuid,
       subordinateUuid,
