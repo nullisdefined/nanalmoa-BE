@@ -293,6 +293,33 @@ export class SchedulesService {
     );
   }
 
+  // 전사 데이터를 OpenAI GPT 모델에 넘겨서 처리
+  async processWithGptOCR(OCRResult: string): Promise<any> {
+    const openai = new OpenAI({
+      apiKey: this.configService.get<string>('OPENAI_API_KEY_OCR'),
+    });
+
+    const gptResponse = await openai.chat.completions.create({
+      model: this.configService.get<string>('OPENAI_FINETUNING_MODEL_OCR'),
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an AI assistant that extracts intent, tablets, times, and days information from conversations.',
+        },
+        {
+          role: 'user',
+          content: `${OCRResult}`,
+        },
+      ],
+      max_tokens: 1000, // 필요한 토큰 수 설정
+      temperature: 0,
+    });
+
+    const gptResponseContent = gptResponse.choices[0].message.content;
+    return this.parseGptResponse(gptResponseContent);
+  }
+
   // 날짜를 YYYY-MM-DD HH:mm:ss 형식으로 변환하는 함수
   private async formatDateToYYYYMMDDHHMMSS(date: Date): Promise<string> {
     const year = date.getFullYear();
@@ -354,29 +381,5 @@ export class SchedulesService {
       await this.voiceTranscriptionService.whisperTranscribeResult(file);
     const result = await this.processWithGpt(transcribe, currentDateTime);
     return result;
-  }
-
-  async transcribeOCRAndFetchResultWithGpt(
-    file: Express.Multer.File,
-    currentDateTime: string,
-  ) {
-    try {
-      const ocrResult = await this.ocrTranscriptionService.detectTextByOCR(
-        file.buffer,
-      );
-      if (!ocrResult) {
-        throw new Error('OCR 결과가 비어있습니다.');
-      }
-
-      // GPT 처리 로직
-      const gptResult = await this.processWithGpt(ocrResult, currentDateTime);
-      return gptResult;
-    } catch (error) {
-      this.logger.error(
-        `OCR 및 GPT 처리 중 오류 발생: ${error.message}`,
-        error.stack,
-      );
-      throw new Error(`일정 추출 실패: ${error.message}`);
-    }
   }
 }
