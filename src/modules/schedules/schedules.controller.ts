@@ -28,12 +28,16 @@ import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { VoiceScheduleUploadDto } from './dto/voice-schedule-upload.dto';
 import { OCRScheduleUploadDto } from './dto/ocr-schedule-upload.dto';
+import { OCRTranscriptionService } from './OCR-transcription.service';
 
 @ApiTags('Schedules')
 @Controller('schedules')
 //@UseGuards(AuthGuard('jwt'))
 export class SchedulesController {
-  constructor(private readonly schedulesService: SchedulesService) {}
+  constructor(
+    private readonly schedulesService: SchedulesService,
+    private readonly ocrTranscriptionService: OCRTranscriptionService,
+  ) {}
 
   @Get('range')
   @ApiOperation({ summary: '특정 날짜 범위의 일정 조회' })
@@ -214,16 +218,13 @@ export class SchedulesController {
     description: '추출된 일정 정보',
     type: [CreateScheduleDto],
   })
-  async uploadImageSchedule(
+  async uploadImageScheduleClova(
     @UploadedFile() file: Express.Multer.File,
-    @Body('currentDateTime') currentDateTime: string,
   ): Promise<CreateScheduleDto[]> {
     // OCRTranscriptionService를 사용하여 이미지 파일 OCR 처리 및 일정 추출
-    const result =
-      await this.schedulesService.transcribeOCRAndFetchResultWithGpt(
-        file,
-        currentDateTime,
-      );
+    const result = await this.schedulesService.processWithGptOCR(
+      await this.ocrTranscriptionService.extractTextFromNaverOCR(file),
+    );
 
     return result;
   }

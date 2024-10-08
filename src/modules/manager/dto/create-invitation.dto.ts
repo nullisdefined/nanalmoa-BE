@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsUUID, IsDate, IsOptional } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class CreateInvitationDto {
   @ApiProperty({
@@ -16,10 +15,4 @@ export class CreateInvitationDto {
   })
   @IsUUID()
   subordinateUuid: string;
-
-  @ApiProperty({ description: '초대 로그 만료 날짜', required: false })
-  @IsDate()
-  @IsOptional()
-  @Type(() => Date) // 문자열을 Date 객체로 자동 변환
-  expiredAt?: Date;
 }
