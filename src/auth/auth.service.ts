@@ -23,6 +23,7 @@ import {
   RefreshKakaoTokenResponseDto,
   RefreshNaverTokenResponseDto,
 } from './dto/response.dto';
+import * as nodemailer from 'nodemailer';
 @Injectable()
 export class AuthService {
   constructor(
@@ -33,12 +34,25 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly coolSmsService: CoolSmsService,
-  ) {}
+  ) {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: this.configService.get('EMAIL_USER'),
+        pass: this.configService.get('EMAIL_PASS'),
+      },
+    });
+  }
 
   private stateStore = new Map<string, number>();
   private verificationCodes: Map<
     string,
     { code: string; expiresAt: Date; isVerified: boolean }
+  > = new Map();
+  private transporter: nodemailer.Transporter;
+  private emailVerificationCodes: Map<
+    string,
+    { code: string; expiresAt: Date }
   > = new Map();
 
   async signupWithPhoneNumber(
@@ -418,5 +432,63 @@ export class AuthService {
       await this.authRepository.update(auth.authId, { refreshToken: null });
       throw new UnauthorizedException('토큰 갱신에 실패했습니다.');
     }
+  }
+
+  async sendEmailVerification(email: string) {
+    if (!this.isValidEmail(email)) {
+      throw new BadRequestException('잘못된 이메일 형식입니다.');
+    }
+
+    const verificationCode = this.generateVerificationCode();
+    const expirationTime = new Date(Date.now() + 5 * 60 * 1000);
+
+    this.emailVerificationCodes.set(email, {
+      code: verificationCode,
+      expiresAt: expirationTime,
+    });
+
+    await this.sendEmail(
+      email,
+      '[나날모아] 이메일 인증',
+      `본인확인 인증 코드
+[${verificationCode}]를 입력해주세요.
+이 코드는 5분동안 유효합니다.`,
+    );
+
+    return { message: '인증 코드가 이메일로 전송되었습니다.' };
+  }
+
+  async verifyEmailCode(email: string, code: string) {
+    const storedData = this.emailVerificationCodes.get(email);
+
+    if (!storedData) {
+      throw new BadRequestException('인증 코드를 찾을 수 없습니다.');
+    }
+
+    if (new Date() > storedData.expiresAt) {
+      this.emailVerificationCodes.delete(email);
+      throw new BadRequestException('인증 코드가 만료되었습니다.');
+    }
+
+    if (storedData.code !== code) {
+      throw new BadRequestException('잘못된 인증 코드입니다.');
+    }
+
+    this.emailVerificationCodes.delete(email);
+    return { message: '이메일이 성공적으로 인증되었습니다.' };
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  private async sendEmail(to: string, subject: string, text: string) {
+    await this.transporter.sendMail({
+      from: this.configService.get('EMAIL_FROM'),
+      to,
+      subject,
+      text,
+    });
   }
 }

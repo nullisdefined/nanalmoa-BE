@@ -295,4 +295,95 @@ export class AuthController {
   async logout(@Req() req) {
     // 로그아웃 로직
   }
+
+  @Post('email/send')
+  @ApiOperation({ summary: '이메일 인증 코드 전송' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: {
+          type: 'string',
+          description: '인증 코드를 받을 이메일 주소',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '인증 코드 전송 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: '인증 코드가 이메일로 전송되었습니다.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: '잘못된 이메일 형식',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 400 },
+        message: { type: 'string', example: '잘못된 이메일 형식입니다.' },
+        error: { type: 'string', example: 'Bad Request' },
+      },
+    },
+  })
+  async sendEmailVerification(@Body('email') email: string) {
+    return this.authService.sendEmailVerification(email);
+  }
+
+  @Post('email/verify')
+  @ApiOperation({ summary: '이메일 인증 코드 확인' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: {
+          type: 'string',
+          description: '인증 코드를 받은 이메일 주소',
+        },
+        code: {
+          type: 'string',
+          description: '이메일로 받은 인증 코드',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '인증 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: '이메일이 성공적으로 인증되었습니다.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: '잘못된 인증 코드',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 400 },
+        message: { type: 'string', example: '잘못된 인증 코드입니다.' },
+        error: { type: 'string', example: 'Bad Request' },
+      },
+    },
+  })
+  async verifyEmailCode(
+    @Body('email') email: string,
+    @Body('code') code: string,
+  ) {
+    return this.authService.verifyEmailCode(email, code);
+  }
 }

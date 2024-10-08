@@ -21,7 +21,7 @@ export class CoolSmsService {
       const result = await this.messageService.sendOne({
         to: phoneNumber,
         from: this.configService.get<string>('COOLSMS_SENDER_PHONE_NUMBER'),
-        text: `[나날모아] 본인확인 인증코드
+        text: `[나날모아] 본인확인 인증 코드
 [${verificationCode}]를 화면에 입력해주세요.
 이 코드는 ${expirationMinutes}분동안 유효합니다.`,
       });
