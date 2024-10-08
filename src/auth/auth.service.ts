@@ -24,6 +24,8 @@ import {
   RefreshNaverTokenResponseDto,
 } from './dto/response.dto';
 import * as nodemailer from 'nodemailer';
+import * as path from 'path';
+import * as fs from 'fs';
 @Injectable()
 export class AuthService {
   constructor(
@@ -441,23 +443,41 @@ export class AuthService {
 
     const verificationCode = this.generateVerificationCode();
     const expirationTime = new Date(Date.now() + 5 * 60 * 1000);
+    const expirationMinutes = 5;
 
     this.emailVerificationCodes.set(email, {
       code: verificationCode,
       expiresAt: expirationTime,
     });
 
-    await this.sendEmail(
-      email,
-      '[나날모아] 이메일 인증',
-      `본인확인 인증 코드
-[${verificationCode}]를 입력해주세요.
-이 코드는 5분동안 유효합니다.`,
+    const templatePath = path.join(
+      process.cwd(),
+      'templates',
+      'email-verification.html',
     );
 
-    return { message: '인증 코드가 이메일로 전송되었습니다.' };
-  }
+    let htmlContent;
+    try {
+      htmlContent = fs.readFileSync(templatePath, 'utf8');
+    } catch (error) {
+      console.error('템플릿 파일을 읽을 수 없습니다:', error);
+      throw new BadRequestException('이메일 템플릿을 로드할 수 없습니다.');
+    }
 
+    htmlContent = htmlContent.replace('{{verificationCode}}', verificationCode);
+    htmlContent = htmlContent.replace(
+      '{{expirationMinutes}}',
+      expirationMinutes.toString(),
+    );
+
+    try {
+      await this.sendEmail(email, '[나날모아] 이메일 인증', htmlContent);
+      return { message: '인증 코드가 이메일로 전송되었습니다.' };
+    } catch (error) {
+      console.error('이메일 전송 실패:', error);
+      throw new BadRequestException('이메일 전송에 실패했습니다.');
+    }
+  }
   async verifyEmailCode(email: string, code: string) {
     const storedData = this.emailVerificationCodes.get(email);
 
@@ -483,12 +503,12 @@ export class AuthService {
     return emailRegex.test(email);
   }
 
-  private async sendEmail(to: string, subject: string, text: string) {
+  private async sendEmail(to: string, subject: string, html: string) {
     await this.transporter.sendMail({
       from: this.configService.get('EMAIL_FROM'),
       to,
       subject,
-      text,
+      html,
     });
   }
 }
