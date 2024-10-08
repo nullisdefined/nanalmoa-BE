@@ -61,4 +61,36 @@ export class UsersService {
       throw error;
     }
   }
+
+  private determineSearchType(
+    keyword: string,
+  ): 'phoneNumber' | 'name' | 'email' {
+    if (/^\d{10,11}$/.test(keyword)) {
+      return 'phoneNumber';
+    } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(keyword)) {
+      return 'email';
+    } else {
+      return 'name';
+    }
+  }
+
+  async searchUser(keyword: string): Promise<User[]> {
+    const searchType = this.determineSearchType(keyword);
+    switch (searchType) {
+      case 'phoneNumber':
+        return this.userRepository.find({
+          where: [{ phoneNumber: keyword }],
+        });
+      case 'email':
+        return this.userRepository.find({
+          where: [{ email: keyword }],
+        });
+      case 'name':
+        return this.userRepository.find({
+          where: [{ name: keyword }],
+        });
+    }
+
+    return [];
+  }
 }
