@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Seeder, SeederFactoryManager } from 'typeorm-extension';
+import { Seeder } from 'typeorm-extension';
 import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '../../entities/category.entity';
 import { faker } from '@faker-js/faker/locale/ko';
@@ -497,11 +497,7 @@ export class ScheduleSeeder implements Seeder {
     '불암산',
   ];
 
-  async run(
-    dataSource: DataSource,
-    factoryManager: SeederFactoryManager,
-  ): Promise<void> {
-    const scheduleRepository = dataSource.getRepository(Schedule);
+  async run(dataSource: DataSource): Promise<void> {
     const categoryRepository = dataSource.getRepository(Category);
 
     const categories = await categoryRepository.find();
@@ -554,7 +550,6 @@ export class ScheduleSeeder implements Seeder {
           endDate,
           title,
           place: faker.helpers.arrayElement(this.locationTemplates),
-          isGroupSchedule: faker.datatype.boolean(0.3),
           isAllDay,
         };
 

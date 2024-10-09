@@ -11,6 +11,10 @@ import { ScheduleSeeder } from './database/seeds/schedule.seed';
 import { ManagerInvitation } from './entities/manager-invitation.entity';
 import { ManagerSubordinate } from './entities/manager-subordinate.entity';
 import { UserSeeder } from './database/seeds/user.seed';
+import { Group } from './entities/group.entity';
+import { GroupInvitation } from './entities/group-invitation.entity';
+import { GroupSchedule } from './entities/group-schedule.entity';
+import { UserGroup } from './entities/user-group.entity';
 
 config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
 
@@ -28,6 +32,10 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     Schedule,
     ManagerInvitation,
     ManagerSubordinate,
+    Group,
+    GroupInvitation,
+    GroupSchedule,
+    UserGroup,
   ],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
   seeds: [CategorySeeder, ScheduleSeeder, UserSeeder],
