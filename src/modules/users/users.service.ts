@@ -76,21 +76,30 @@ export class UsersService {
 
   async searchUser(keyword: string): Promise<User[]> {
     const searchType = this.determineSearchType(keyword);
+    let users: User[] = [];
+
     switch (searchType) {
       case 'phoneNumber':
-        return this.userRepository.find({
+        users = await this.userRepository.find({
           where: [{ phoneNumber: keyword }],
         });
+        break;
       case 'email':
-        return this.userRepository.find({
+        users = await this.userRepository.find({
           where: [{ email: keyword }],
         });
+        break;
       case 'name':
-        return this.userRepository.find({
+        users = await this.userRepository.find({
           where: [{ name: keyword }],
         });
+        break;
     }
 
-    return [];
+    if (users.length === 0) {
+      throw new NotFoundException('검색 결과가 없습니다.');
+    }
+
+    return users;
   }
 }
