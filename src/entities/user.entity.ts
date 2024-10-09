@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Auth } from './auth.entity';
+import { Schedule } from './schedule.entity';
 
 @Entity('user')
 export class User {
@@ -48,4 +49,7 @@ export class User {
 
   @OneToMany(() => Auth, (auth) => auth.user)
   auths: Auth[];
+
+  @OneToMany(() => Schedule, (schedule) => schedule.user)
+  schedules: Schedule[];
 }

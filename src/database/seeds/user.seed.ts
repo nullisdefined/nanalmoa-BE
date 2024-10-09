@@ -296,6 +296,21 @@ export class UserSeeder implements Seeder {
 
     const users = [];
     const auths = [];
+    // 특정 UUID를 가진 사용자 추가
+    const specificUser = new User();
+    specificUser.userUuid = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+    specificUser.name = this.generateKoreanName();
+    specificUser.profileImage = faker.helpers.arrayElement(
+      this.profileImageTemplates,
+    );
+
+    const specificAuth = new Auth();
+    specificAuth.authProvider = AuthProvider.BASIC;
+    specificAuth.refreshToken = faker.string.alphanumeric({ length: 64 });
+    specificAuth.user = specificUser;
+
+    users.push(specificUser);
+    auths.push(specificAuth);
 
     for (let i = 0; i < 100; i++) {
       const user = new User();

@@ -6,8 +6,11 @@ export class ResponseScheduleDto {
   @ApiProperty({ description: '일정 ID', example: 1 })
   scheduleId: number;
 
-  @ApiProperty({ description: '사용자 ID', example: 1 })
-  userId: number;
+  @ApiProperty({
+    description: '특정 사용자의 UUID',
+    example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+  })
+  userUuid: string;
 
   @ApiProperty({
     description: '카테고리',
@@ -57,14 +60,15 @@ export class ResponseScheduleDto {
 
   constructor(schedule: Schedule, category: Category) {
     this.scheduleId = schedule.scheduleId;
-    this.userId = schedule.userId;
+    this.userUuid = schedule.userUuid;
     this.category = category;
     this.startDate = schedule.startDate;
     this.endDate = schedule.endDate;
     this.title = schedule.title;
     this.place = schedule.place;
     this.memo = schedule.memo;
-    this.isGroupSchedule = schedule.groupSchedules?.length > 0 || false;
+    this.isGroupSchedule =
+      (schedule.groupSchedules && schedule.groupSchedules.length > 0) || false;
     this.isAllDay = schedule.isAllDay;
   }
 }

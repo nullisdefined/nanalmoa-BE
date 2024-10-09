@@ -38,7 +38,7 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     UserGroup,
   ],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
-  seeds: [CategorySeeder, ScheduleSeeder, UserSeeder],
+  seeds: [CategorySeeder, UserSeeder, ScheduleSeeder],
   ssl:
     process.env.NODE_ENV === 'production'
       ? { rejectUnauthorized: false }

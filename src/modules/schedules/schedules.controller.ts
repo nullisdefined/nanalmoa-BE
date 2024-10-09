@@ -32,7 +32,6 @@ import { OCRTranscriptionService } from './OCR-transcription.service';
 
 @ApiTags('Schedules')
 @Controller('schedules')
-//@UseGuards(AuthGuard('jwt'))
 export class SchedulesController {
   constructor(
     private readonly schedulesService: SchedulesService,
@@ -52,7 +51,7 @@ export class SchedulesController {
     return this.schedulesService.findByDateRange(dateRange);
   }
 
-  @Post() // 추후 인증  @UseGuards(JwtAuthGuard), @ApiBearerAuth() 관련 설정이 필요함.
+  @Post()
   @ApiOperation({
     summary: '새 일정 생성',
     description: '새로운 일정을 생성합니다.',
@@ -62,8 +61,6 @@ export class SchedulesController {
     description: '일정이 성공적으로 생성됨',
     type: ResponseScheduleDto,
   })
-  @ApiResponse({ status: 400, description: '잘못된 입력' })
-  @ApiResponse({ status: 401, description: '인증 실패' })
   async createSchedule(
     @Body() createScheduleDto: CreateScheduleDto,
   ): Promise<ResponseScheduleDto> {
@@ -80,9 +77,6 @@ export class SchedulesController {
     description: '일정이 성공적으로 업데이트됨',
     type: ResponseScheduleDto,
   })
-  @ApiResponse({ status: 400, description: '잘못된 입력' })
-  @ApiResponse({ status: 401, description: '인증 실패' })
-  @ApiResponse({ status: 404, description: '일정을 찾을 수 없음' })
   async updateSchedule(
     @Param('id') id: number,
     @Body() updateScheduleDto: UpdateScheduleDto,
@@ -96,10 +90,20 @@ export class SchedulesController {
     description: '지정된 ID의 일정을 삭제합니다.',
   })
   @ApiResponse({ status: 204, description: '일정이 성공적으로 삭제됨' })
-  @ApiResponse({ status: 401, description: '인증 실패' })
-  @ApiResponse({ status: 404, description: '일정을 찾을 수 없음' })
   async deleteSchedule(@Param('id') id: number): Promise<void> {
     await this.schedulesService.remove(id);
+  }
+  @Get('date')
+  @ApiOperation({ summary: '특정 날짜의 일정 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '일정 조회 성공',
+    type: [ResponseScheduleDto],
+  })
+  async getSchedulesByDate(
+    @Query() weekQuery: WeekQueryDto,
+  ): Promise<ResponseScheduleDto[]> {
+    return this.schedulesService.findByDate(weekQuery);
   }
 
   @Get('week')
@@ -112,7 +116,6 @@ export class SchedulesController {
   async getSchedulesByWeek(
     @Query() weekQuery: WeekQueryDto,
   ): Promise<ResponseScheduleDto[]> {
-    console.log('getSchedulesByWeek called with:', weekQuery);
     return this.schedulesService.findByWeek(weekQuery);
   }
 
@@ -126,7 +129,6 @@ export class SchedulesController {
   async getSchedulesByMonth(
     @Query() monthQuery: MonthQueryDto,
   ): Promise<ResponseScheduleDto[]> {
-    console.log('getSchedulesByMonth called with:', monthQuery);
     return this.schedulesService.findByMonth(monthQuery);
   }
 
@@ -140,24 +142,22 @@ export class SchedulesController {
     description: '일정 조회 성공',
     type: ResponseScheduleDto,
   })
-  @ApiResponse({ status: 401, description: '인증 실패' })
-  @ApiResponse({ status: 404, description: '일정을 찾을 수 없음' })
   async getScheduleById(@Param('id') id: number): Promise<ResponseScheduleDto> {
     return await this.schedulesService.findOne(id);
   }
 
   @Get()
   @ApiOperation({ summary: '사용자의 모든 일정 조회' })
-  @ApiQuery({ name: 'userId', required: true, type: Number })
+  @ApiQuery({ name: 'userUuid', required: true, type: String })
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
     type: [ResponseScheduleDto],
   })
-  async getAllSchedulesByUserId(
-    @Query('userId') userId: number,
+  async getAllSchedulesByUserUuid(
+    @Query('userUuid') userUuid: string,
   ): Promise<ResponseScheduleDto[]> {
-    return this.schedulesService.findAllByUserId(userId);
+    return this.schedulesService.findAllByUserUuid(userUuid);
   }
 
   @Post('upload/RTZR')
@@ -168,20 +168,17 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '추출된 일정 정보',
-    //type: [VoiceScheduleConfirmDto],
   })
   async uploadVoiceScheduleByRTZR(
     @UploadedFile() file: Express.Multer.File,
     @Body('currentDateTime') currentDateTime: string,
+    @Body('userUuid') userUuid: string,
   ): Promise<CreateScheduleDto[]> {
-    // TranscriptionService를 사용하여 음성 파일 전사 및 처리
-    const result =
-      await this.schedulesService.transcribeRTZRAndFetchResultWithGpt(
-        file,
-        currentDateTime,
-      );
-
-    return result;
+    return await this.schedulesService.transcribeRTZRAndFetchResultWithGpt(
+      file,
+      currentDateTime,
+      userUuid,
+    );
   }
 
   @Post('upload/Whisper')
@@ -192,20 +189,17 @@ export class SchedulesController {
   @ApiResponse({
     status: 200,
     description: '추출된 일정 정보',
-    //type: [VoiceScheduleConfirmDto],
   })
   async uploadVoiceScheduleByWhisper(
     @UploadedFile() file: Express.Multer.File,
     @Body('currentDateTime') currentDateTime: string,
+    @Body('userUuid') userUuid: string,
   ): Promise<CreateScheduleDto[]> {
-    // TranscriptionService를 사용하여 음성 파일 전사 및 처리
-    const result =
-      await this.schedulesService.transcribeWhisperAndFetchResultWithGpt(
-        file,
-        currentDateTime,
-      );
-
-    return result;
+    return await this.schedulesService.transcribeWhisperAndFetchResultWithGpt(
+      file,
+      currentDateTime,
+      userUuid,
+    );
   }
 
   @Post('upload')
@@ -220,12 +214,10 @@ export class SchedulesController {
   })
   async uploadImageScheduleClova(
     @UploadedFile() file: Express.Multer.File,
+    @Body('userUuid') userUuid: string,
   ): Promise<CreateScheduleDto[]> {
-    // OCRTranscriptionService를 사용하여 이미지 파일 OCR 처리 및 일정 추출
-    const result = await this.schedulesService.processWithGptOCR(
-      await this.ocrTranscriptionService.extractTextFromNaverOCR(file),
-    );
-
-    return result;
+    const ocrResult =
+      await this.ocrTranscriptionService.extractTextFromNaverOCR(file);
+    return await this.schedulesService.processWithGptOCR(ocrResult);
   }
 }
