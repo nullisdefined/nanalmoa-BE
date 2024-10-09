@@ -5,16 +5,19 @@ import {
   IsString,
   IsBoolean,
   IsOptional,
+  IsUUID,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateScheduleDto {
-  @ApiProperty({ description: '사용자 ID', example: 1 })
+  @ApiProperty({
+    description: '특정 사용자의 UUID',
+    example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+  })
+  @IsUUID()
   @IsNotEmpty()
-  @Type(() => Number)
-  @IsNumber()
-  userId: number;
+  userUuid: string;
 
   @ApiProperty({
     description: '카테고리 ID',

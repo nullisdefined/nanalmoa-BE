@@ -3,6 +3,7 @@ import { Seeder } from 'typeorm-extension';
 import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '../../entities/category.entity';
 import { faker } from '@faker-js/faker/locale/ko';
+import { User } from '@/entities/user.entity';
 
 export class ScheduleSeeder implements Seeder {
   private scheduleTemplates = [
@@ -499,11 +500,25 @@ export class ScheduleSeeder implements Seeder {
 
   async run(dataSource: DataSource): Promise<void> {
     const categoryRepository = dataSource.getRepository(Category);
+    const userRepository = dataSource.getRepository(User);
 
     const categories = await categoryRepository.find();
     if (categories.length === 0) {
       console.error('카테고리가 없습니다. 먼저 CategorySeeder를 실행해주세요.');
       return;
+    }
+
+    // 사용자 확인 또는 생성
+    let user = await userRepository.findOne({
+      where: { userUuid: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d' },
+    });
+    if (!user) {
+      user = await userRepository.save({
+        userUuid: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+        name: 'Test User',
+        email: 'testuser@example.com',
+      });
+      console.log('새 사용자가 생성되었습니다:', user.userUuid);
     }
 
     const years = [2022, 2023, 2024, 2025];
@@ -518,7 +533,7 @@ export class ScheduleSeeder implements Seeder {
           from: startRange,
           to: endRange,
         });
-        const duration = faker.number.int({ min: 1, max: 7 }); // 1일에서 7일 사이
+        const duration = faker.number.int({ min: 1, max: 7 });
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + duration - 1);
 
@@ -543,18 +558,17 @@ export class ScheduleSeeder implements Seeder {
 
         const title = faker.helpers.arrayElement(this.scheduleTemplates);
 
-        const schedule = {
-          userId: 101,
-          categoryId: faker.helpers.arrayElement(categories).categoryId,
-          startDate,
-          endDate,
-          title,
-          place: faker.helpers.arrayElement(this.locationTemplates),
-          isAllDay,
-        };
+        const schedule = new Schedule();
+        schedule.userUuid = user.userUuid;
+        schedule.category = faker.helpers.arrayElement(categories);
+        schedule.startDate = startDate;
+        schedule.endDate = endDate;
+        schedule.title = title;
+        schedule.place = faker.helpers.arrayElement(this.locationTemplates);
+        schedule.isAllDay = isAllDay;
 
         if (faker.datatype.boolean(0.2)) {
-          schedule['memo'] = faker.helpers.arrayElement(this.memoTemplates);
+          schedule.memo = faker.helpers.arrayElement(this.memoTemplates);
         }
 
         schedules.push(schedule);

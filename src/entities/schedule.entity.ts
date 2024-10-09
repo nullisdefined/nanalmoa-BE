@@ -10,14 +10,19 @@ import {
 } from 'typeorm';
 import { Category } from './category.entity';
 import { GroupSchedule } from './group-schedule.entity';
+import { User } from './user.entity';
 
 @Entity('schedule')
 export class Schedule {
   @PrimaryGeneratedColumn({ name: 'schedule_id' })
   scheduleId: number;
 
-  @Column({ name: 'user_id' })
-  userId: number;
+  @Column({ name: 'user_uuid', type: 'uuid' })
+  userUuid: string;
+
+  @ManyToOne(() => User, (user) => user.schedules)
+  @JoinColumn({ name: 'user_uuid', referencedColumnName: 'userUuid' })
+  user: User;
 
   @ManyToOne(() => Category, (category) => category.schedules)
   @JoinColumn({ name: 'category_id' })
