@@ -3,6 +3,7 @@ import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '../../entities/category.entity';
 import { faker } from '@faker-js/faker/locale/ko';
+import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 export class ScheduleSeeder implements Seeder {
   private scheduleTemplates = [
@@ -503,6 +504,8 @@ export class ScheduleSeeder implements Seeder {
   ): Promise<void> {
     const scheduleRepository = dataSource.getRepository(Schedule);
     const categoryRepository = dataSource.getRepository(Category);
+    const scheduleInstanceRepository =
+      dataSource.getRepository(ScheduleInstance);
 
     const categories = await categoryRepository.find();
     if (categories.length === 0) {
@@ -510,7 +513,7 @@ export class ScheduleSeeder implements Seeder {
       return;
     }
 
-    const years = [2022, 2023, 2024, 2025];
+    const years = [2023, 2024, 2025];
     const schedules = [];
 
     for (const year of years) {
@@ -522,7 +525,7 @@ export class ScheduleSeeder implements Seeder {
           from: startRange,
           to: endRange,
         });
-        const duration = faker.number.int({ min: 1, max: 7 }); // 1일에서 7일 사이
+        const duration = faker.number.int({ min: 1, max: 3 });
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + duration - 1);
 
@@ -531,32 +534,41 @@ export class ScheduleSeeder implements Seeder {
           startDate.setHours(0, 0, 0, 0);
           endDate.setHours(23, 59, 59, 999);
         } else {
-          startDate.setHours(
-            faker.number.int({ min: 0, max: 23 }),
-            faker.number.int({ min: 0, max: 59 }),
-            0,
-            0,
-          );
+          startDate.setHours(faker.number.int({ min: 0, max: 23 }), 0, 0, 0);
           endDate.setHours(
             faker.number.int({ min: startDate.getHours(), max: 23 }),
-            faker.number.int({ min: 0, max: 59 }),
+            59,
             59,
             999,
           );
         }
 
         const title = faker.helpers.arrayElement(this.scheduleTemplates);
+        const category = faker.helpers.arrayElement(categories);
 
         const schedule = {
           userId: 101,
-          categoryId: faker.helpers.arrayElement(categories).categoryId,
+          category: category,
           startDate,
           endDate,
           title,
           place: faker.helpers.arrayElement(this.locationTemplates),
           isGroupSchedule: faker.datatype.boolean(0.3),
           isAllDay,
+          repeatType: faker.helpers.arrayElement([
+            'none',
+            'daily',
+            'weekly',
+            'monthly',
+          ]),
+          repeatEndDate: null,
         };
+
+        if (schedule.repeatType !== 'none') {
+          const repeatDuration = faker.number.int({ min: 30, max: 180 });
+          schedule.repeatEndDate = new Date(startDate);
+          schedule.repeatEndDate.setDate(startDate.getDate() + repeatDuration);
+        }
 
         if (faker.datatype.boolean(0.2)) {
           schedule['memo'] = faker.helpers.arrayElement(this.memoTemplates);
@@ -567,18 +579,72 @@ export class ScheduleSeeder implements Seeder {
     }
 
     await dataSource.transaction(async (transactionalEntityManager) => {
-      for (const schedule of schedules) {
+      for (const scheduleData of schedules) {
         try {
-          await transactionalEntityManager.save(Schedule, schedule);
-          console.log(
-            `일정 생성: ${schedule.title} (${schedule.startDate.toISOString()} - ${schedule.endDate.toISOString()})`,
+          const savedSchedule = await transactionalEntityManager.save(
+            Schedule,
+            scheduleData,
           );
+          console.log(
+            `일정 생성: ${savedSchedule.title} (${savedSchedule.startDate.toISOString()} - ${savedSchedule.endDate.toISOString()})`,
+          );
+
+          if (savedSchedule.repeatType !== 'none') {
+            await this.createScheduleInstances(
+              transactionalEntityManager,
+              savedSchedule,
+            );
+          }
         } catch (error) {
-          console.error(`일정 생성 중 오류 발생: ${schedule.title}`, error);
+          console.error(`일정 생성 중 오류 발생: ${scheduleData.title}`, error);
         }
       }
     });
 
     console.log(`총 ${schedules.length}개의 일정이 생성되었습니다.`);
+  }
+
+  private async createScheduleInstances(
+    transactionalEntityManager,
+    schedule: Schedule,
+  ): Promise<void> {
+    let currentDate = new Date(schedule.startDate);
+    const endDate = schedule.repeatEndDate;
+    const duration = schedule.endDate.getTime() - schedule.startDate.getTime();
+
+    while (currentDate <= endDate) {
+      const instanceEndDate = new Date(currentDate.getTime() + duration);
+
+      const isException = faker.datatype.boolean(0.1);
+
+      if (isException) {
+        const exceptionMemo = faker.helpers.arrayElement(this.memoTemplates);
+        await transactionalEntityManager.save(ScheduleInstance, {
+          schedule,
+          instanceStartDate: new Date(currentDate),
+          instanceEndDate: instanceEndDate,
+          isException: true,
+          exceptionMemo,
+        });
+      } else {
+        await transactionalEntityManager.save(ScheduleInstance, {
+          schedule,
+          instanceStartDate: new Date(currentDate),
+          instanceEndDate: instanceEndDate,
+        });
+      }
+
+      switch (schedule.repeatType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + 7);
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          break;
+      }
+    }
   }
 }
