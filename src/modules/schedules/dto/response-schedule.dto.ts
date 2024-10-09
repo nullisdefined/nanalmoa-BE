@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Schedule } from 'src/entities/schedule.entity';
 import { Category } from '@/entities/category.entity';
+import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 export class ResponseScheduleDto {
   @ApiProperty({ description: '일정 ID', example: 1 })
@@ -69,7 +70,16 @@ export class ResponseScheduleDto {
   })
   repeatEndDate?: Date;
 
-  constructor(schedule: Schedule, category: Category) {
+  instances?: {
+    instanceStartDate: Date;
+    instanceEndDate: Date;
+  }[];
+
+  constructor(
+    schedule: Schedule,
+    category: Category,
+    instances?: ScheduleInstance[],
+  ) {
     this.scheduleId = schedule.scheduleId;
     this.userId = schedule.userId;
     this.category = category;
@@ -80,5 +90,11 @@ export class ResponseScheduleDto {
     this.memo = schedule.memo;
     this.isGroupSchedule = schedule.isGroupSchedule;
     this.isAllDay = schedule.isAllDay;
+    if (instances && instances.length > 0) {
+      this.instances = instances.map((instance) => ({
+        instanceStartDate: instance.instanceStartDate,
+        instanceEndDate: instance.instanceEndDate,
+      }));
+    }
   }
 }
