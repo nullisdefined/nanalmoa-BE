@@ -6,8 +6,10 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { GroupSchedule } from './group-schedule.entity';
 
 @Entity('schedule')
 export class Schedule {
@@ -36,9 +38,6 @@ export class Schedule {
   @Column({ type: 'text', default: '' })
   memo?: string;
 
-  @Column({ name: 'is_group_schedule', default: false })
-  isGroupSchedule?: boolean;
-
   @Column({ name: 'is_all_day', default: false })
   isAllDay?: boolean;
 
@@ -47,4 +46,7 @@ export class Schedule {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @OneToMany(() => GroupSchedule, (groupSchedule) => groupSchedule.schedule)
+  groupSchedules: GroupSchedule[];
 }

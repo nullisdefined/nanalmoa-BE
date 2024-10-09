@@ -64,7 +64,7 @@ export class ResponseScheduleDto {
     this.title = schedule.title;
     this.place = schedule.place;
     this.memo = schedule.memo;
-    this.isGroupSchedule = schedule.isGroupSchedule;
+    this.isGroupSchedule = schedule.groupSchedules?.length > 0 || false;
     this.isAllDay = schedule.isAllDay;
   }
 }
