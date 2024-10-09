@@ -6,8 +6,10 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { ScheduleInstance } from './schedule-instance.entity';
 
 @Entity('schedule')
 export class Schedule {
@@ -42,9 +44,23 @@ export class Schedule {
   @Column({ name: 'is_all_day', default: false })
   isAllDay?: boolean;
 
+  @Column({
+    name: 'repeat_type',
+    type: 'enum',
+    enum: ['none', 'daily', 'weekly', 'monthly'],
+    default: 'none',
+  })
+  repeatType: 'none' | 'daily' | 'weekly' | 'monthly';
+
+  @Column({ name: 'repeat_end_date', type: 'timestamp', nullable: true })
+  repeatEndDate?: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @OneToMany(() => ScheduleInstance, (instance) => instance.schedule)
+  instances: ScheduleInstance[];
 }

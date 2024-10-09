@@ -55,6 +55,20 @@ export class ResponseScheduleDto {
   @ApiProperty({ description: '종일 옵션', example: false })
   isAllDay: boolean;
 
+  @ApiProperty({
+    description: '반복 유형',
+    enum: ['none', 'daily', 'weekly', 'monthly'],
+    example: 'none',
+  })
+  repeatType: 'none' | 'daily' | 'weekly' | 'monthly';
+
+  @ApiProperty({
+    description: '반복 종료 날짜',
+    example: '2024-12-31T23:59:59Z',
+    required: false,
+  })
+  repeatEndDate?: Date;
+
   constructor(schedule: Schedule, category: Category) {
     this.scheduleId = schedule.scheduleId;
     this.userId = schedule.userId;

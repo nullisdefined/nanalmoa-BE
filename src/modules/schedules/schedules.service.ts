@@ -20,6 +20,7 @@ import { Category } from '@/entities/category.entity';
 import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
 import { VoiceTranscriptionService } from './voice-transcription.service';
 import { OCRTranscriptionService } from './OCR-transcription.service';
+import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 @Injectable()
 export class SchedulesService {
@@ -35,6 +36,8 @@ export class SchedulesService {
     private readonly configService: ConfigService,
     private readonly voiceTranscriptionService: VoiceTranscriptionService,
     private readonly ocrTranscriptionService: OCRTranscriptionService,
+    @InjectRepository(ScheduleInstance)
+    private scheduleInstanceRepository: Repository<ScheduleInstance>,
   ) {
     const openaiApiKey = this.configService.get<string>('OPENAI_API_KEY');
     this.openai = new OpenAI({
@@ -82,7 +85,47 @@ export class SchedulesService {
 
     const savedSchedule = await this.schedulesRepository.save(newSchedule);
 
+    if (savedSchedule.repeatType !== 'none') {
+      await this.createScheduleInstances(savedSchedule);
+    }
+
     return new ResponseScheduleDto(savedSchedule, category);
+  }
+
+  private async createScheduleInstances(schedule: Schedule): Promise<void> {
+    let currentDate = new Date(schedule.startDate);
+    const endDate =
+      schedule.repeatEndDate ||
+      new Date(
+        currentDate.getFullYear() + 1,
+        currentDate.getMonth(),
+        currentDate.getDate(),
+      );
+
+    while (currentDate <= endDate) {
+      const instanceEndDate = new Date(
+        currentDate.getTime() +
+          (schedule.endDate.getTime() - schedule.startDate.getTime()),
+      );
+
+      await this.scheduleInstanceRepository.save({
+        schedule,
+        instanceStartDate: new Date(currentDate),
+        instanceEndDate: instanceEndDate,
+      });
+
+      switch (schedule.repeatType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + 7);
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          break;
+      }
+    }
   }
 
   async update(
@@ -95,7 +138,7 @@ export class SchedulesService {
     });
     if (!schedule) {
       throw new NotFoundException(
-        `해당 "${id}를 가진 스케쥴을 찾을 수 없습니다." `,
+        `해당 "${id}를 가진 일정을 찾을 수 없습니다." `,
       );
     }
 
@@ -108,8 +151,25 @@ export class SchedulesService {
     // 업데이트할 필드만 병합
     Object.assign(schedule, updateScheduleDto);
 
-    const savedSchedule = await this.schedulesRepository.save(schedule);
-    return new ResponseScheduleDto(savedSchedule, schedule.category);
+    const updatedSchedule = await this.schedulesRepository.save(schedule);
+
+    if (
+      updateScheduleDto.repeatType !== 'none' ||
+      updateScheduleDto.repeatEndDate
+    ) {
+      await this.updateScheduleInstances(updatedSchedule);
+    }
+
+    return new ResponseScheduleDto(updatedSchedule, schedule.category);
+  }
+
+  private async updateScheduleInstances(schedule: Schedule): Promise<void> {
+    await this.scheduleInstanceRepository.delete({
+      schedule: { scheduleId: schedule.scheduleId },
+    });
+    if (schedule.repeatType !== 'none') {
+      await this.createScheduleInstances(schedule);
+    }
   }
 
   async remove(id: number): Promise<void> {
