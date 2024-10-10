@@ -8,7 +8,7 @@ export class CreateGroupDto {
 
   @ApiProperty({
     description: '그룹 생성자 UUID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
   })
   @IsUUID()
   creatorUuid: string;

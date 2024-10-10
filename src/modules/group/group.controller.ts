@@ -1,126 +1,210 @@
 import {
   Controller,
-  Get,
   Post,
+  Get,
+  Patch,
   Delete,
   Param,
   Body,
-  UseGuards,
   Query,
-  Patch,
+  UseGuards,
+  Req,
   ForbiddenException,
-  NotFoundException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiParam,
-  ApiBody,
-  ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { GroupService } from './group.service';
-import { CreateGroupDto } from './dto/create-group.dto';
 import { InviteGroupMemberDto } from './dto/invite-group-memeber.dto';
 import { RespondToInvitationDto } from './dto/response-invitation.dto';
-import { InvitationStatus } from '@/entities/manager-invitation.entity';
+import { AuthGuard } from '@nestjs/passport';
+import { Request } from 'express';
+import { GroupInfoResponseDto } from './dto/response-group.dto';
+import { GroupMemberResponseDto } from './dto/response-group-member.dto';
 
 @ApiTags('Group')
 @Controller('groups')
-// @UseGuards(AuthGuard('jwt'))
-// @ApiBearerAuth('Access-Token')
+@UseGuards(AuthGuard('jwt'))
+@ApiBearerAuth('Access-Token')
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 
+  // 그룹 생성 및 관리
   @Post()
   @ApiOperation({ summary: '새 그룹 생성' })
   @ApiResponse({ status: 201, description: '그룹이 성공적으로 생성됨' })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
-  async createGroup(@Body() createGroupDto: CreateGroupDto) {
-    return this.groupService.createGroup(createGroupDto);
+  async createGroup(
+    @Query('groupName') groupName: string,
+    @Req() req: Request,
+  ) {
+    const creatorUuid = req.user['userUuid'];
+    return this.groupService.createGroup({ groupName, creatorUuid });
   }
 
-  @Get(':scheduleId')
-  @ApiOperation({ summary: '그룹 멤버 조회' })
-  @ApiParam({
-    name: 'scheduleId',
-    type: 'number',
-    description: '조회할 일정 ID',
+  @Delete(':groupId')
+  @ApiOperation({ summary: '그룹 삭제' })
+  @ApiParam({ name: 'groupId', description: '삭제할 그룹 ID' })
+  @ApiResponse({ status: 200, description: '그룹이 성공적으로 삭제됨' })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
+  async deleteGroup(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Req() req: Request,
+  ) {
+    const adminUuid = req.user['userUuid'];
+    await this.groupService.deleteGroup(groupId, adminUuid);
+    return { message: '그룹이 성공적으로 삭제되었습니다.' };
+  }
+
+  // 그룹 정보 조회
+  @Get('user')
+  @ApiOperation({ summary: '사용자가 속한 그룹 정보 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '사용자의 그룹 목록',
+    type: [GroupInfoResponseDto],
   })
-  @ApiResponse({ status: 200, description: '그룹 멤버 목록 반환' })
-  @ApiResponse({ status: 404, description: '일정을 찾을 수 없음' })
-  async getGroupMembers(@Param('scheduleId') scheduleId: number) {
-    // 그룹 멤버 조회 로직
+  async getUserGroups(@Req() req: Request): Promise<GroupInfoResponseDto[]> {
+    const userUuid = req.user['userUuid'];
+    return this.groupService.getUserGroups(userUuid);
   }
 
+  @Get(':groupId/members')
+  @ApiOperation({ summary: '특정 그룹의 그룹원 정보 조회' })
+  @ApiParam({ name: 'groupId', description: '그룹 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '그룹원 목록',
+    type: [GroupMemberResponseDto],
+  })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
+  async getGroupMembers(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Req() req: Request,
+  ): Promise<GroupMemberResponseDto[]> {
+    const userUuid = req.user['userUuid'];
+    return this.groupService.getGroupMembers(groupId, userUuid);
+  }
+
+  // 그룹 멤버 관리
   @Post('invite')
   @ApiOperation({ summary: '그룹 멤버 초대' })
   @ApiResponse({ status: 201, description: '초대가 성공적으로 생성됨' })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
   @ApiResponse({ status: 403, description: '권한 없음' })
-  async inviteGroupMember(@Body() inviteGroupMemberDto: InviteGroupMemberDto) {
-    return this.groupService.inviteGroupMember(inviteGroupMemberDto);
+  async inviteGroupMember(
+    @Body() inviteGroupMemberDto: InviteGroupMemberDto,
+    @Req() req: Request,
+  ) {
+    const inviterUuid = req.user['userUuid'];
+    if (inviterUuid === inviteGroupMemberDto.inviteeUuid) {
+      throw new ForbiddenException('자신을 초대할 수 없습니다.');
+    }
+    return this.groupService.inviteGroupMember(
+      inviteGroupMemberDto,
+      inviterUuid,
+    );
   }
 
-  @Patch(':id/accept')
+  @Delete(':groupId/members/:memberUuid')
+  @ApiOperation({ summary: '그룹 멤버 추방' })
+  @ApiParam({ name: 'groupId', description: '그룹 ID' })
+  @ApiParam({ name: 'memberUuid', description: '추방할 멤버의 UUID' })
+  @ApiResponse({ status: 200, description: '멤버가 성공적으로 추방됨' })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '그룹 또는 멤버를 찾을 수 없음' })
+  async removeGroupMember(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Param('memberUuid') memberUuid: string,
+    @Req() req: Request,
+  ) {
+    const adminUuid = req.user['userUuid'];
+    await this.groupService.removeGroupMember(
+      { groupId, memberUuid },
+      adminUuid,
+    );
+    return { message: '멤버가 성공적으로 그룹에서 추방되었습니다.' };
+  }
+
+  // 초대 관리
+  @Patch('invitation/:id/accept')
   @ApiOperation({ summary: '그룹 초대 수락' })
   @ApiParam({ name: 'id', description: '초대 ID' })
-  @ApiQuery({ name: 'userUuid', description: '사용자 UUID' })
   @ApiResponse({ status: 200, description: '초대 수락 성공' })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
   @ApiResponse({ status: 403, description: '권한 없음' })
   @ApiResponse({ status: 404, description: '초대를 찾을 수 없음' })
   async acceptInvitation(
-    @Param('id') id: number,
-    @Query('userUuid') userUuid: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
   ) {
-    const invitation = await this.groupService.getInvitation(id);
-
-    if (invitation.inviteeUuid !== userUuid) {
-      throw new ForbiddenException('이 초대를 수락할 권한이 없습니다.');
-    }
-
-    if (invitation.status !== InvitationStatus.PENDING) {
-      throw new ForbiddenException('이 초대는 더 이상 유효하지 않습니다.');
-    }
-
-    const respondDto: RespondToInvitationDto = {
-      invitationId: id,
-      status: InvitationStatus.ACCEPTED,
-    };
-
-    await this.groupService.respondToInvitation(respondDto);
-
-    return { message: '그룹 초대가 성공적으로 수락되었습니다.' };
+    const inviteeUuid = req.user['userUuid'];
+    return this.groupService.acceptInvitation(id, inviteeUuid);
   }
 
-  @Delete(':scheduleId')
-  @ApiOperation({ summary: '그룹 탈퇴' })
-  @ApiResponse({ status: 200, description: '그룹 탈퇴 성공' })
+  @Patch('invitation/:id/reject')
+  @ApiOperation({ summary: '그룹 초대 거절' })
+  @ApiParam({ name: 'id', description: '초대 ID' })
+  @ApiResponse({ status: 200, description: '초대 거절 성공' })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
-  async leaveGroup(@Param('scheduleId') scheduleId: number) {
-    // 그룹 탈퇴 로직
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '초대를 찾을 수 없음' })
+  async rejectInvitation(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ) {
+    const inviteeUuid = req.user['userUuid'];
+    return this.groupService.rejectInvitation(id, inviteeUuid);
   }
 
-  @Delete(':scheduleId/member')
-  @ApiOperation({ summary: '그룹 멤버 삭제' })
-  @ApiParam({ name: 'scheduleId', type: 'number', description: '일정 ID' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        userId: { type: 'number', description: '삭제할 멤버의 사용자 ID' },
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: '멤버 삭제 성공' })
-  @ApiResponse({ status: 404, description: '멤버 또는 일정을 찾을 수 없음' })
-  async removeMember(
-    @Param('scheduleId') scheduleId: number,
-    @Body() removeMemberDto: any,
+  @Patch('invitation/:id/cancel')
+  @ApiOperation({ summary: '그룹 초대 철회' })
+  @ApiParam({ name: 'id', description: '초대 ID' })
+  @ApiResponse({ status: 200, description: '초대 철회 성공' })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '초대를 찾을 수 없음' })
+  async cancelInvitation(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
   ) {
-    // 그룹 멤버 삭제 로직
+    const inviterUuid = req.user['userUuid'];
+    return this.groupService.cancelInvitation(id, inviterUuid);
+  }
+
+  @Get('invitations/sent')
+  @ApiOperation({ summary: '보낸 그룹 초대 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '보낸 초대 목록',
+    type: [RespondToInvitationDto],
+  })
+  async getSentInvitations(
+    @Req() req: Request,
+  ): Promise<RespondToInvitationDto[]> {
+    const userUuid = req.user['userUuid'];
+    return this.groupService.getSentInvitations(userUuid);
+  }
+
+  @Get('invitations/received')
+  @ApiOperation({ summary: '받은 그룹 초대 조회' })
+  @ApiResponse({
+    status: 200,
+    description: '받은 초대 목록',
+    type: [RespondToInvitationDto],
+  })
+  async getReceivedInvitations(
+    @Req() req: Request,
+  ): Promise<RespondToInvitationDto[]> {
+    const userUuid = req.user['userUuid'];
+    return this.groupService.getReceivedInvitations(userUuid);
   }
 }
