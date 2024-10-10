@@ -8,7 +8,7 @@ import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Schedule } from '../../entities/schedule.entity';
-import { Between, Repository } from 'typeorm';
+import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { ResponseScheduleDto } from './dto/response-schedule.dto';
 import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
@@ -43,6 +43,26 @@ export class SchedulesService {
       apiKey: openaiApiKey,
     });
   }
+
+  private async findSchedulesBetweenDates(
+    userUuid: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Schedule[]> {
+    return this.schedulesRepository.find({
+      where: [
+        // 시작일 또는 종료일이 조회 범위 내에 있는 경우
+        {
+          user: { userUuid },
+          startDate: LessThanOrEqual(endDate),
+          endDate: MoreThanOrEqual(startDate),
+        },
+      ],
+      relations: ['category', 'user'],
+      order: { startDate: 'ASC' },
+    });
+  }
+
   private adjustDateForAllDay(startDate: Date, endDate: Date): [Date, Date] {
     const adjustedStartDate = new Date(startDate);
     adjustedStartDate.setUTCHours(0, 0, 0, 0);
@@ -174,14 +194,12 @@ export class SchedulesService {
       );
     }
 
-    const schedules = await this.schedulesRepository.find({
-      where: {
-        user: { userUuid: dateRange.userUuid },
-        startDate: Between(dateRange.startDate, dateRange.endDate),
-      },
-      relations: ['category', 'user'],
-      order: { startDate: 'ASC' },
-    });
+    // 새로운 메서드를 사용하여 일정 조회
+    const schedules = await this.findSchedulesBetweenDates(
+      dateRange.userUuid,
+      dateRange.startDate,
+      dateRange.endDate,
+    );
 
     return schedules.map(
       (schedule) => new ResponseScheduleDto(schedule, schedule.category),
@@ -191,23 +209,24 @@ export class SchedulesService {
   async findByMonth(monthQuery: MonthQueryDto): Promise<ResponseScheduleDto[]> {
     await this.validateUser(monthQuery.userUuid);
 
-    const startDate = new Date(monthQuery.year, monthQuery.month - 1, 1);
-    const endDate = new Date(monthQuery.year, monthQuery.month, 0);
+    // 해당 월의 시작일
+    const startDate = new Date(
+      Date.UTC(monthQuery.year, monthQuery.month - 1, 1),
+    );
+    // 다음 달의 시작일 (해당 월의 마지막 날 23:59:59.999)
+    const endDate = new Date(Date.UTC(monthQuery.year, monthQuery.month, 1));
+    endDate.setUTCMilliseconds(-1);
 
-    const schedules = await this.schedulesRepository.find({
-      where: {
-        user: { userUuid: monthQuery.userUuid },
-        startDate: Between(startDate, endDate),
-      },
-      relations: ['category', 'user'],
-      order: { startDate: 'ASC' },
-    });
+    const schedules = await this.findSchedulesBetweenDates(
+      monthQuery.userUuid,
+      startDate,
+      endDate,
+    );
 
     return schedules.map(
       (schedule) => new ResponseScheduleDto(schedule, schedule.category),
     );
   }
-
   async findByWeek(weekQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
     await this.validateUser(weekQuery.userUuid);
 
@@ -231,37 +250,31 @@ export class SchedulesService {
       ),
     );
 
-    const schedules = await this.schedulesRepository.find({
-      where: {
-        user: { userUuid: weekQuery.userUuid },
-        startDate: Between(startDate, endDate),
-      },
-      relations: ['category', 'user'],
-      order: { startDate: 'ASC' },
-    });
+    const schedules = await this.findSchedulesBetweenDates(
+      weekQuery.userUuid,
+      startDate,
+      endDate,
+    );
 
     return schedules.map(
       (schedule) => new ResponseScheduleDto(schedule, schedule.category),
     );
   }
 
-  async findByDate(weekQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
-    await this.validateUser(weekQuery.userUuid);
+  async findByDate(dateQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
+    await this.validateUser(dateQuery.userUuid);
 
-    const startOfDay = new Date(weekQuery.date);
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = new Date(dateQuery.date);
+    startOfDay.setUTCHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(weekQuery.date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const endOfDay = new Date(dateQuery.date);
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
-    const schedules = await this.schedulesRepository.find({
-      where: {
-        user: { userUuid: weekQuery.userUuid },
-        startDate: Between(startOfDay, endOfDay),
-      },
-      relations: ['category', 'user'],
-      order: { startDate: 'ASC' },
-    });
+    const schedules = await this.findSchedulesBetweenDates(
+      dateQuery.userUuid,
+      startOfDay,
+      endOfDay,
+    );
 
     return schedules.map(
       (schedule) => new ResponseScheduleDto(schedule, schedule.category),
