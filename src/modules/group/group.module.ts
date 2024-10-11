@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { GroupService } from './group.service';
 import { GroupController } from './group.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { Group } from '@/entities/group.entity';
 import { UserGroup } from '@/entities/user-group.entity';
 import { GroupSchedule } from '@/entities/group-schedule.entity';
 import { GroupInvitation } from '@/entities/group-invitation.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -15,8 +16,8 @@ import { GroupInvitation } from '@/entities/group-invitation.entity';
       GroupSchedule,
       GroupInvitation,
     ]),
+    UsersModule,
   ],
-
   controllers: [GroupController],
   providers: [GroupService],
   exports: [GroupService],
