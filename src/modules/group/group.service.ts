@@ -36,7 +36,7 @@ export class GroupService {
     const { groupName, creatorUuid } = createGroupDto;
 
     const existingGroup = await this.userGroupRepository.findOne({
-      where: { user_uuid: creatorUuid },
+      where: { userUuid: creatorUuid },
       relations: ['group'],
     });
 
@@ -50,7 +50,7 @@ export class GroupService {
     const savedGroup = await this.groupRepository.save(newGroup);
 
     const userGroup = this.userGroupRepository.create({
-      user_uuid: creatorUuid,
+      userUuid: creatorUuid,
       group: savedGroup,
       isAdmin: true,
     });
@@ -82,14 +82,14 @@ export class GroupService {
     }
 
     const isCreator = group.userGroups.some(
-      (ug) => ug.user_uuid === inviterUuid && ug.isAdmin,
+      (ug) => ug.userUuid === inviterUuid && ug.isAdmin,
     );
     if (!isCreator) {
       throw new ForbiddenException('그룹 생성자만이 초대를 할 수 있습니다.');
     }
 
     const existingMember = await this.userGroupRepository.findOne({
-      where: { group: { groupId }, user_uuid: inviteeUuid },
+      where: { group: { groupId }, userUuid: inviteeUuid },
     });
 
     if (existingMember) {
@@ -155,7 +155,7 @@ export class GroupService {
       }
 
       const userGroup = new UserGroup();
-      userGroup.user_uuid = invitation.inviteeUuid;
+      userGroup.userUuid = invitation.inviteeUuid;
       userGroup.group = group;
       userGroup.isAdmin = false;
       await transactionalEntityManager.save(userGroup);
@@ -260,7 +260,7 @@ export class GroupService {
     }
 
     const adminUserGroup = group.userGroups.find(
-      (ug) => ug.user_uuid === adminUuid && ug.isAdmin,
+      (ug) => ug.userUuid === adminUuid && ug.isAdmin,
     );
 
     if (!adminUserGroup) {
@@ -284,7 +284,7 @@ export class GroupService {
 
   async getUserGroups(userUuid: string): Promise<GroupInfoResponseDto[]> {
     const userGroups = await this.userGroupRepository.find({
-      where: { user_uuid: userUuid },
+      where: { userUuid: userUuid },
       relations: ['group'],
     });
 
@@ -334,7 +334,7 @@ export class GroupService {
   ): Promise<GroupMemberResponseDto[]> {
     // 먼저 요청한 사용자가 해당 그룹의 멤버인지 확인
     const requestingUserGroup = await this.userGroupRepository.findOne({
-      where: { group: { groupId }, user_uuid: requestingUserUuid },
+      where: { group: { groupId }, userUuid: requestingUserUuid },
     });
 
     if (!requestingUserGroup) {
@@ -353,7 +353,7 @@ export class GroupService {
     }
 
     return userGroups.map((userGroup) => ({
-      userUuid: userGroup.user_uuid,
+      userUuid: userGroup.userUuid,
       isAdmin: userGroup.isAdmin,
       joinedAt: userGroup.createdAt,
     }));
@@ -377,7 +377,7 @@ export class GroupService {
 
     // 요청자가 그룹의 관리자인지 확인
     const adminUserGroup = group.userGroups.find(
-      (ug) => ug.user_uuid === adminUuid && ug.isAdmin,
+      (ug) => ug.userUuid === adminUuid && ug.isAdmin,
     );
     if (!adminUserGroup) {
       throw new ForbiddenException(
@@ -387,7 +387,7 @@ export class GroupService {
 
     // 추방할 멤버가 그룹에 존재하는지 확인
     const memberUserGroup = await this.userGroupRepository.findOne({
-      where: { group: { groupId }, user_uuid: memberUuid },
+      where: { group: { groupId }, userUuid: memberUuid },
     });
 
     if (!memberUserGroup) {
