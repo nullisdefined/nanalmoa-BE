@@ -10,10 +10,7 @@ import { UsersRoutineController } from './users-routine.controller';
 import { UsersRoutineService } from './users-routine.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Auth, User]), AuthModule],
-  controllers: [UsersController],
-  providers: [UsersService],
-  imports: [TypeOrmModule.forFeature([Auth, User, UserRoutine])],
+  imports: [TypeOrmModule.forFeature([Auth, User, AuthModule, UserRoutine])],
   controllers: [UsersController, UsersRoutineController],
   providers: [UsersService, UsersRoutineService],
 })
