@@ -8,9 +8,13 @@ import { ConfigModule } from '@nestjs/config';
 import { CategoriesModule } from '../categories/categories.module';
 import { VoiceTranscriptionService } from './voice-transcription.service';
 import { OCRTranscriptionService } from './OCR-transcription.service';
+import { User } from '@/entities/user.entity';
+import { UsersService } from '../users/users.service';
+import { Auth } from '@/entities/auth.entity';
 import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 @Module({
   imports: [
+    TypeOrmModule.forFeature([Schedule, User, Auth]),
     TypeOrmModule.forFeature([Schedule, ScheduleInstance]),
     HttpModule,
     ConfigModule,
@@ -21,6 +25,7 @@ import { ScheduleInstance } from '@/entities/schedule-instance.entity';
     SchedulesService,
     VoiceTranscriptionService,
     OCRTranscriptionService,
+    UsersService,
   ],
 })
 export class SchedulesModule {}

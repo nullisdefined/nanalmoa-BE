@@ -5,7 +5,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export class DateRangeDto extends PickType(CreateScheduleDto, [
   'startDate',
   'endDate',
-  'userId',
+  'userUuid',
 ] as const) {
   @ApiProperty({
     description: '조회 시작 날짜',
@@ -18,10 +18,4 @@ export class DateRangeDto extends PickType(CreateScheduleDto, [
     example: '2024-09-30',
   })
   endDate: Date;
-
-  @ApiProperty({
-    description: '사용자 ID',
-    example: 1,
-  })
-  userId: number;
 }

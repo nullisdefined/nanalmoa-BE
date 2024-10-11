@@ -9,7 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { Auth, AuthProvider } from 'src/entities/auth.entity';
 import { User } from 'src/entities/user.entity';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CoolSmsService } from './coolsms.service';
 import { ConfigService } from '@nestjs/config';
@@ -46,7 +46,6 @@ export class AuthService {
     });
   }
 
-  private stateStore = new Map<string, number>();
   private verificationCodes: Map<
     string,
     { code: string; expiresAt: Date; isVerified: boolean }
@@ -56,6 +55,41 @@ export class AuthService {
     string,
     { code: string; expiresAt: Date }
   > = new Map();
+  private verifiedPhoneNumbers: Map<string, Date> = new Map();
+  private verifiedEmails: Map<string, Date> = new Map();
+
+  setPhoneNumberVerified(phoneNumber: string): void {
+    this.verifiedPhoneNumbers.set(phoneNumber, new Date());
+  }
+
+  setEmailVerified(email: string): void {
+    this.verifiedEmails.set(email, new Date());
+  }
+
+  isPhoneNumberVerified(phoneNumber: string): boolean {
+    return this.isVerified(this.verifiedPhoneNumbers, phoneNumber);
+  }
+
+  isEmailVerified(email: string): boolean {
+    return this.isVerified(this.verifiedEmails, email);
+  }
+
+  private isVerified(verificationMap: Map<string, Date>, key: string): boolean {
+    const verifiedAt = verificationMap.get(key);
+    if (!verifiedAt) {
+      return false;
+    }
+
+    // 인증 후 10분이 지나지 않았는지 확인
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    if (verifiedAt > tenMinutesAgo) {
+      return true;
+    }
+
+    // 10분이 지났다면 인증 정보 삭제
+    verificationMap.delete(key);
+    return false;
+  }
 
   async signupWithPhoneNumber(
     phoneNumber: string,
@@ -146,9 +180,20 @@ export class AuthService {
   }
 
   async sendVerificationCode(phoneNumber: string): Promise<boolean> {
+    const now = new Date();
+    const storedData = this.verificationCodes.get(phoneNumber);
+
+    // 최근 1분 이내에 발송된 코드가 있는지 확인
+    if (
+      storedData &&
+      now.getTime() - storedData.expiresAt.getTime() < -4 * 60 * 1000
+    ) {
+      throw new BadRequestException('1분 후에 다시 시도해주세요.');
+    }
+
     const verificationCode = this.generateVerificationCode();
     const expirationMinutes = 5;
-    const expiresAt = new Date(Date.now() + expirationMinutes * 60000);
+    const expiresAt = new Date(now.getTime() + expirationMinutes * 60000);
 
     this.verificationCodes.set(phoneNumber, {
       code: verificationCode,
@@ -165,18 +210,18 @@ export class AuthService {
       return result;
     } catch (error) {
       console.error('인증 코드 전송 실패:', error);
+      // 전송 실패 시 저장된 코드 삭제
+      this.verificationCodes.delete(phoneNumber);
       return false;
     }
   }
 
-  verifyCode(phoneNumber: string, code: string): boolean {
+  async verifyCode(phoneNumber: string, code: string): Promise<boolean> {
     const storedData = this.verificationCodes.get(phoneNumber);
     if (storedData && storedData.code === code) {
       if (new Date() <= storedData.expiresAt) {
-        this.verificationCodes.set(phoneNumber, {
-          ...storedData,
-          isVerified: true,
-        });
+        this.setPhoneNumberVerified(phoneNumber);
+        this.verificationCodes.delete(phoneNumber);
         return true;
       } else {
         console.log('인증 코드가 만료되었습니다.');
@@ -340,23 +385,16 @@ export class AuthService {
     });
 
     if (userAuth) {
-      const user = userAuth.user;
-      // 사용자 정보 업데이트
-      user.name = name || user.name;
-      user.profileImage = profileImage || user.profileImage;
-      user.email = email || user.email;
-      await this.userRepository.save(user);
-
+      // 기존 사용자인 경우, 리프레시 토큰만 업데이트
       userAuth.refreshToken = refreshToken;
       await this.authRepository.save(userAuth);
-
-      return user;
+      return userAuth.user;
     } else {
       // 새 사용자 등록
       const newUser = this.userRepository.create({
         userUuid: uuidv4(),
         name,
-        profileImage: profileImage,
+        profileImage,
         email,
       });
       await this.userRepository.save(newUser);
@@ -441,13 +479,24 @@ export class AuthService {
       throw new BadRequestException('잘못된 이메일 형식입니다.');
     }
 
+    const now = new Date();
+    const storedData = this.emailVerificationCodes.get(email);
+
+    // 최근 1분 이내에 발송된 코드가 있는지 확인
+    if (
+      storedData &&
+      now.getTime() - storedData.expiresAt.getTime() < -4 * 60 * 1000
+    ) {
+      throw new BadRequestException('1분 후에 다시 시도해주세요.');
+    }
+
     const verificationCode = this.generateVerificationCode();
-    const expirationTime = new Date(Date.now() + 5 * 60 * 1000);
     const expirationMinutes = 5;
+    const expiresAt = new Date(now.getTime() + expirationMinutes * 60000);
 
     this.emailVerificationCodes.set(email, {
       code: verificationCode,
-      expiresAt: expirationTime,
+      expiresAt,
     });
 
     const templatePath = path.join(
@@ -475,27 +524,25 @@ export class AuthService {
       return { message: '인증 코드가 이메일로 전송되었습니다.' };
     } catch (error) {
       console.error('이메일 전송 실패:', error);
+      // 전송 실패 시 저장된 코드 삭제
+      this.emailVerificationCodes.delete(email);
       throw new BadRequestException('이메일 전송에 실패했습니다.');
     }
   }
-  async verifyEmailCode(email: string, code: string) {
+
+  async verifyEmailCode(email: string, code: string): Promise<boolean> {
     const storedData = this.emailVerificationCodes.get(email);
-
-    if (!storedData) {
-      throw new BadRequestException('인증 코드를 찾을 수 없습니다.');
+    if (storedData && storedData.code === code) {
+      if (new Date() <= storedData.expiresAt) {
+        this.setEmailVerified(email);
+        this.emailVerificationCodes.delete(email);
+        return true;
+      } else {
+        console.log('인증 코드가 만료되었습니다.');
+        this.emailVerificationCodes.delete(email);
+      }
     }
-
-    if (new Date() > storedData.expiresAt) {
-      this.emailVerificationCodes.delete(email);
-      throw new BadRequestException('인증 코드가 만료되었습니다.');
-    }
-
-    if (storedData.code !== code) {
-      throw new BadRequestException('잘못된 인증 코드입니다.');
-    }
-
-    this.emailVerificationCodes.delete(email);
-    return { message: '이메일이 성공적으로 인증되었습니다.' };
+    return false;
   }
 
   private isValidEmail(email: string): boolean {

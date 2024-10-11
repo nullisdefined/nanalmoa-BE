@@ -102,4 +102,32 @@ export class UsersService {
 
     return users;
   }
+
+  async updateUser(userUuid: string, updateData: Partial<User>): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { userUuid } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    Object.assign(user, updateData);
+    return this.userRepository.save(user);
+  }
+
+  async isEmailTaken(
+    email: string,
+    currentUserUuid?: string,
+  ): Promise<boolean> {
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .where('user.email = :email', { email });
+
+    if (currentUserUuid) {
+      query.andWhere('user.userUuid != :userUuid', {
+        userUuid: currentUserUuid,
+      });
+    }
+
+    const count = await query.getCount();
+    return count > 0;
+  }
 }

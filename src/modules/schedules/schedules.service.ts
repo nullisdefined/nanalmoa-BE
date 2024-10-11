@@ -8,7 +8,13 @@ import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Schedule } from '../../entities/schedule.entity';
-import { Between, LessThanOrEqual, Not, Repository } from 'typeorm';
+import {
+  Between,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Not,
+  Repository,
+} from 'typeorm';
 import { ResponseScheduleDto } from './dto/response-schedule.dto';
 import { DateRangeDto } from './dto/data-range-schedule.dto';
 import { MonthQueryDto } from './dto/month-query-schedule.dto';
@@ -20,6 +26,7 @@ import { Category } from '@/entities/category.entity';
 import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
 import { VoiceTranscriptionService } from './voice-transcription.service';
 import { OCRTranscriptionService } from './OCR-transcription.service';
+import { UsersService } from '../users/users.service';
 import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 @Injectable()
@@ -36,6 +43,7 @@ export class SchedulesService {
     private readonly configService: ConfigService,
     private readonly voiceTranscriptionService: VoiceTranscriptionService,
     private readonly ocrTranscriptionService: OCRTranscriptionService,
+    private readonly usersService: UsersService,
     @InjectRepository(ScheduleInstance)
     private scheduleInstanceRepository: Repository<ScheduleInstance>,
   ) {
@@ -44,6 +52,7 @@ export class SchedulesService {
       apiKey: openaiApiKey,
     });
   }
+
   private adjustDateForAllDay(startDate: Date, endDate: Date): [Date, Date] {
     const adjustedStartDate = new Date(startDate);
     adjustedStartDate.setUTCHours(0, 0, 0, 0);
@@ -67,33 +76,222 @@ export class SchedulesService {
     return category;
   }
 
+  private async validateUser(userUuid: string) {
+    const userExists = await this.usersService.checkUserExists(userUuid);
+    if (!userExists) {
+      throw new NotFoundException(
+        `해당 UUID : ${userUuid} 를 가진 사용자는 없습니다.`,
+      );
+    }
+  }
+
   // 일정 생성
   async create(
     createScheduleDto: CreateScheduleDto,
   ): Promise<ResponseScheduleDto> {
+    await this.validateUser(createScheduleDto.userUuid);
+
     const categoryId = createScheduleDto.categoryId ?? 7;
     const category = await this.getCategoryById(categoryId);
 
     if (createScheduleDto.isAllDay) {
-      this.adjustDateForAllDay(
-        createScheduleDto.startDate,
-        createScheduleDto.endDate,
-      );
+      [createScheduleDto.startDate, createScheduleDto.endDate] =
+        this.adjustDateForAllDay(
+          createScheduleDto.startDate,
+          createScheduleDto.endDate,
+        );
     }
 
     const newSchedule = this.schedulesRepository.create({
       ...createScheduleDto,
-      category: category, // Category 객체 할당합니다.
+      category: category,
     });
 
     const savedSchedule = await this.schedulesRepository.save(newSchedule);
 
     let instances: ScheduleInstance[] = [];
     if (savedSchedule.repeatType !== 'none') {
-      await this.createScheduleInstances(savedSchedule);
+      instances = await this.createScheduleInstances(savedSchedule);
     }
 
     return new ResponseScheduleDto(savedSchedule, category, instances);
+  }
+
+  async createRecurringSchedule(
+    createDto: CreateScheduleDto,
+  ): Promise<Schedule> {
+    const schedule = this.schedulesRepository.create({
+      ...createDto,
+      isRecurring: true,
+    });
+    return this.schedulesRepository.save(schedule);
+  }
+
+  async updateRecurringSchedule(
+    scheduleId: number,
+    updateDto: UpdateScheduleDto,
+    updateFuture: boolean,
+  ): Promise<Schedule> {
+    const schedule = await this.schedulesRepository.findOne({
+      where: { scheduleId },
+      relations: ['instances'],
+    });
+
+    if (!schedule) {
+      throw new NotFoundException('Schedule not found');
+    }
+
+    if (updateFuture) {
+      // 현재 일정부터 새로운 반복 패턴 생성
+      const newSchedule = this.schedulesRepository.create({
+        ...schedule,
+        ...updateDto,
+        scheduleId: undefined,
+        instances: [],
+      });
+      await this.schedulesRepository.save(newSchedule);
+
+      // 기존 일정의 반복 종료일 설정
+      schedule.repeatEndDate = new Date(updateDto.startDate);
+      schedule.repeatEndDate.setDate(schedule.repeatEndDate.getDate() - 1);
+      await this.schedulesRepository.save(schedule);
+
+      return newSchedule;
+    } else {
+      // 현재 일정만 예외로 처리
+      const instance = this.scheduleInstanceRepository.create({
+        schedule,
+        instanceStartDate: updateDto.startDate,
+        instanceEndDate: updateDto.endDate,
+        isException: true,
+        exceptionTitle: updateDto.title,
+        exceptionPlace: updateDto.place,
+        exceptionIsAllDay: updateDto.isAllDay,
+        exceptionMemo: updateDto.memo,
+      });
+      await this.scheduleInstanceRepository.save(instance);
+      return schedule;
+    }
+  }
+
+  private expandRecurringSchedules(
+    recurringSchedules: Schedule[],
+    startDate: Date,
+    endDate: Date,
+  ): Schedule[] {
+    const expandedSchedules: Schedule[] = [];
+
+    for (const schedule of recurringSchedules) {
+      let currentDate = new Date(
+        Math.max(schedule.startDate.getTime(), startDate.getTime()),
+      );
+      const scheduleEndDate = schedule.repeatEndDate || endDate;
+
+      while (currentDate <= scheduleEndDate && currentDate <= endDate) {
+        if (this.isEventOccurring(schedule, currentDate)) {
+          const instance = schedule.instances.find(
+            (i) =>
+              i.instanceStartDate.getTime() === currentDate.getTime() &&
+              i.isException,
+          );
+
+          if (instance) {
+            expandedSchedules.push({
+              ...schedule,
+              scheduleId: undefined,
+              startDate: instance.instanceStartDate,
+              endDate: instance.instanceEndDate,
+              title: instance.exceptionTitle || schedule.title,
+              place: instance.exceptionPlace || schedule.place,
+              isAllDay: instance.exceptionIsAllDay ?? schedule.isAllDay,
+              memo: instance.exceptionMemo || schedule.memo,
+            });
+          } else {
+            expandedSchedules.push({
+              ...schedule,
+              scheduleId: undefined,
+              startDate: new Date(currentDate),
+              endDate: new Date(
+                currentDate.getTime() +
+                  (schedule.endDate.getTime() - schedule.startDate.getTime()),
+              ),
+            });
+          }
+        }
+
+        currentDate = this.getNextOccurrence(schedule, currentDate);
+      }
+    }
+
+    return expandedSchedules;
+  }
+
+  private isEventOccurring(schedule: Schedule, date: Date): boolean {
+    switch (schedule.repeatType) {
+      case 'daily':
+        return true;
+      case 'weekly':
+        return schedule.recurringDaysOfWeek.includes(date.getDay());
+      case 'monthly':
+        return date.getDate() === schedule.recurringDayOfMonth;
+      default:
+        return false;
+    }
+  }
+
+  private getNextOccurrence(schedule: Schedule, currentDate: Date): Date {
+    const nextDate = new Date(currentDate);
+    switch (schedule.repeatType) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + schedule.recurringInterval);
+        break;
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + 7 * schedule.recurringInterval);
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + schedule.recurringInterval);
+        break;
+    }
+    return nextDate;
+  }
+
+  async removeRecurring(id: number, deleteFuture: boolean): Promise<void> {
+    const schedule = await this.schedulesRepository.findOne({
+      where: { scheduleId: id },
+      relations: ['instances'],
+    });
+
+    if (!schedule) {
+      throw new NotFoundException(`ID가 ${id}인 일정을 찾을 수 없습니다`);
+    }
+
+    if (!schedule.isRecurring) {
+      throw new BadRequestException(`ID가 ${id}인 일정은 반복 일정이 아닙니다`);
+    }
+
+    if (deleteFuture) {
+      // 현재 일정부터 모든 미래 일정 삭제
+      await this.schedulesRepository.delete({
+        scheduleId: id,
+        startDate: MoreThanOrEqual(schedule.startDate),
+      });
+    } else {
+      // 현재 일정만 삭제하고 예외로 처리
+      await this.scheduleInstanceRepository.save({
+        schedule: schedule,
+        instanceStartDate: schedule.startDate,
+        instanceEndDate: schedule.endDate,
+        isException: true,
+      });
+    }
+  }
+
+  convertToResponseDto(
+    schedule: Schedule,
+    category: Category,
+    instances?: ScheduleInstance[],
+  ): ResponseScheduleDto {
+    return new ResponseScheduleDto(schedule, category, instances);
   }
 
   // 반복 일정 인스턴스 생성
@@ -116,11 +314,13 @@ export class SchedulesService {
           (schedule.endDate.getTime() - schedule.startDate.getTime()),
       );
 
-      await this.scheduleInstanceRepository.save({
+      const instance = await this.scheduleInstanceRepository.save({
         schedule,
         instanceStartDate: new Date(currentDate),
         instanceEndDate: instanceEndDate,
       });
+
+      instances.push(instance);
 
       switch (schedule.repeatType) {
         case 'daily':
@@ -142,6 +342,10 @@ export class SchedulesService {
     id: number,
     updateScheduleDto: UpdateScheduleDto,
   ): Promise<ResponseScheduleDto> {
+    if (updateScheduleDto.userUuid) {
+      await this.validateUser(updateScheduleDto.userUuid);
+    }
+
     const schedule = await this.schedulesRepository.findOne({
       where: { scheduleId: id },
       relations: ['category'],
@@ -158,7 +362,6 @@ export class SchedulesService {
       );
     }
 
-    // 업데이트할 필드만 병합
     Object.assign(schedule, updateScheduleDto);
 
     const updatedSchedule = await this.schedulesRepository.save(schedule);
@@ -198,70 +401,86 @@ export class SchedulesService {
     });
     if (!schedule) {
       throw new NotFoundException(
-        `해당 id : ${id}를 가진 스케쥴을 찾을 수 없습니다. `,
+        `해당 id : ${id}를 가진 일정을 찾을 수 없습니다. `,
       );
     }
-    return new ResponseScheduleDto(schedule, schedule.category);
+    return this.convertToResponseDto(schedule, schedule.category);
   }
 
-  async findAllByUserId(userId: number): Promise<ResponseScheduleDto[]> {
-    // 일반 일정 조회
-    const regularSchedules = await this.schedulesRepository.find({
-      where: { userId: userId, repeatType: 'none' },
-      relations: ['category'],
+  async findAllByUserUuid(userUuid: string): Promise<ResponseScheduleDto[]> {
+    await this.validateUser(userUuid);
+
+    const schedules = await this.schedulesRepository.find({
+      where: { user: { userUuid } },
       order: { startDate: 'ASC' },
+      relations: ['category', 'user'],
     });
 
-    // 반복 일정 조회
-    const repeatingSchedules = await this.schedulesRepository.find({
-      where: { userId: userId, repeatType: Not('none') },
-      relations: ['category'],
-    });
-
-    // 현재 날짜로부터 1년 후까지의 반복 일정 인스턴스 조회
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setFullYear(endDate.getFullYear() + 1);
-
-    const instances = await this.scheduleInstanceRepository.find({
-      where: {
-        schedule: { userId: userId },
-        instanceStartDate: Between(startDate, endDate),
-      },
-      relations: ['schedule', 'schedule.category'],
-    });
-
-    // 반복 일정 인스턴스를 Schedule 형태로 변환
-    const convertedInstances = instances.map((instance) => ({
-      ...instance.schedule,
-      startDate: instance.instanceStartDate,
-      endDate: instance.instanceEndDate,
-    }));
-
-    // 모든 일정을 합치고 날짜순으로 정렬
-    const allSchedules = [...regularSchedules, ...convertedInstances];
-    allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-
-    // ResponseScheduleDto 형식으로 변환하여 반환
-    return allSchedules.map(
-      (schedule) => new ResponseScheduleDto(schedule, schedule.category),
+    return schedules.map((schedule) =>
+      this.convertToResponseDto(schedule, schedule.category),
     );
   }
+
+  // async findAllByUserId(userId: number): Promise<ResponseScheduleDto[]> {
+  //   // 일반 일정 조회
+  //   const regularSchedules = await this.schedulesRepository.find({
+  //     where: { userId: userId, repeatType: 'none' },
+  //     relations: ['category'],
+  //     order: { startDate: 'ASC' },
+  //   });
+
+  //   // 반복 일정 조회
+  //   const repeatingSchedules = await this.schedulesRepository.find({
+  //     where: { userId: userId, repeatType: Not('none') },
+  //     relations: ['category'],
+  //   });
+
+  //   // 현재 날짜로부터 1년 후까지의 반복 일정 인스턴스 조회
+  //   const startDate = new Date();
+  //   const endDate = new Date();
+  //   endDate.setFullYear(endDate.getFullYear() + 1);
+
+  //   const instances = await this.scheduleInstanceRepository.find({
+  //     where: {
+  //       schedule: { userId: userId },
+  //       instanceStartDate: Between(startDate, endDate),
+  //     },
+  //     relations: ['schedule', 'schedule.category'],
+  //   });
+
+  //   // 반복 일정 인스턴스를 Schedule 형태로 변환
+  //   const convertedInstances = instances.map((instance) => ({
+  //     ...instance.schedule,
+  //     startDate: instance.instanceStartDate,
+  //     endDate: instance.instanceEndDate,
+  //   }));
+
+  //   // 모든 일정을 합치고 날짜순으로 정렬
+  //   const allSchedules = [...regularSchedules, ...convertedInstances];
+  //   allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+  //   // ResponseScheduleDto 형식으로 변환하여 반환
+  //   return allSchedules.map(
+  //     (schedule) => new ResponseScheduleDto(schedule, schedule.category),
+  //   );
+  // }
 
   // 날짜 범위로 일정 조회
   async findByDateRange(
     dateRange: DateRangeDto,
   ): Promise<ResponseScheduleDto[]> {
+    await this.validateUser(dateRange.userUuid);
+
     if (dateRange.startDate > dateRange.endDate) {
       throw new BadRequestException(
-        '시작 날짜는 종료 날짜보다 늦을 수 없습니다.',
+        '시작 날짜는 종료 날짜보다 늦게 설정할 수 없습니다.',
       );
     }
 
     const [regularSchedules, repeatingSchedules] = await Promise.all([
       this.schedulesRepository.find({
         where: {
-          userId: dateRange.userId,
+          user: { userUuid: dateRange.userUuid },
           startDate: Between(dateRange.startDate, dateRange.endDate),
           repeatType: 'none',
         },
@@ -270,7 +489,7 @@ export class SchedulesService {
       }),
       this.schedulesRepository.find({
         where: {
-          userId: dateRange.userId,
+          user: { userUuid: dateRange.userUuid },
           startDate: LessThanOrEqual(dateRange.endDate),
           repeatType: Not('none'),
         },
@@ -280,7 +499,7 @@ export class SchedulesService {
 
     const instances = await this.scheduleInstanceRepository.find({
       where: {
-        schedule: { userId: dateRange.userId },
+        schedule: { user: { userUuid: dateRange.userUuid } },
         instanceStartDate: Between(dateRange.startDate, dateRange.endDate),
       },
       relations: ['schedule', 'schedule.category'],
@@ -301,41 +520,32 @@ export class SchedulesService {
   }
 
   async findByMonth(monthQuery: MonthQueryDto): Promise<ResponseScheduleDto[]> {
-    console.log('findByMonth 호출 형식 :', monthQuery);
+    await this.validateUser(monthQuery.userUuid);
 
     const startDate = new Date(monthQuery.year, monthQuery.month - 1, 1);
     const endDate = new Date(monthQuery.year, monthQuery.month, 0);
 
-    console.log('Date range:', { startDate, endDate });
-
     const schedules = await this.schedulesRepository.find({
       where: {
-        userId: monthQuery.userId,
+        user: { userUuid: monthQuery.userUuid },
         startDate: Between(startDate, endDate),
       },
-      relations: ['category'],
-
+      relations: ['category', 'user'],
       order: { startDate: 'ASC' },
     });
 
-    console.log('Schedules found:', schedules.length);
-
-    const dtos = await Promise.all(
-      schedules.map(async (schedule) => {
-        return new ResponseScheduleDto(schedule, schedule.category);
-      }),
+    return schedules.map(
+      (schedule) => new ResponseScheduleDto(schedule, schedule.category),
     );
-
-    return dtos;
   }
 
   async findByWeek(weekQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
-    console.log('findByWeek called with:', weekQuery);
+    await this.validateUser(weekQuery.userUuid);
 
     const date = new Date(weekQuery.date);
-    date.setUTCHours(0, 0, 0, 0); // UTC 시간으로 설정
+    date.setUTCHours(0, 0, 0, 0);
     const day = date.getDay();
-    const diff = date.getDate() - day; // 일요일을 기준으로 주의 시작일 계산
+    const diff = date.getDate() - day;
 
     const startDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff),
@@ -352,26 +562,41 @@ export class SchedulesService {
       ),
     );
 
-    console.log('Date range:', { startDate, endDate });
-
     const schedules = await this.schedulesRepository.find({
       where: {
-        userId: weekQuery.userId,
+        user: { userUuid: weekQuery.userUuid },
         startDate: Between(startDate, endDate),
       },
-      relations: ['category'],
+      relations: ['category', 'user'],
       order: { startDate: 'ASC' },
     });
 
-    console.log('Schedules found:', schedules.length);
-
-    const dtos = await Promise.all(
-      schedules.map(async (schedule) => {
-        return new ResponseScheduleDto(schedule, schedule.category);
-      }),
+    return schedules.map(
+      (schedule) => new ResponseScheduleDto(schedule, schedule.category),
     );
+  }
 
-    return dtos;
+  async findByDate(weekQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
+    await this.validateUser(weekQuery.userUuid);
+
+    const startOfDay = new Date(weekQuery.date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(weekQuery.date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const schedules = await this.schedulesRepository.find({
+      where: {
+        user: { userUuid: weekQuery.userUuid },
+        startDate: Between(startOfDay, endOfDay),
+      },
+      relations: ['category', 'user'],
+      order: { startDate: 'ASC' },
+    });
+
+    return schedules.map(
+      (schedule) => new ResponseScheduleDto(schedule, schedule.category),
+    );
   }
 
   // 반복 일정 인스턴스 조회 또는 생성
@@ -444,12 +669,13 @@ export class SchedulesService {
   private async processWithGpt(
     transcriptionResult: any,
     currentDateTime: string,
+    userUuid: string,
   ): Promise<CreateScheduleDto[]> {
     const openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
     });
 
-    const formattedDate = this.formatDateToYYYYMMDDHHMMSS(
+    const formattedDate = await this.formatDateToYYYYMMDDHHMMSS(
       new Date(currentDateTime),
     );
 
@@ -471,6 +697,7 @@ export class SchedulesService {
     const gptResponseContent = gptResponse.choices[0].message.content;
     return this.convertGptResponseToCreateDto(
       this.parseGptResponse(gptResponseContent),
+      userUuid,
     );
   }
 
@@ -493,7 +720,7 @@ export class SchedulesService {
           content: `${OCRResult}`,
         },
       ],
-      max_tokens: 1000, // 필요한 토큰 수 설정
+      max_tokens: 1000,
       temperature: 0,
     });
 
@@ -504,63 +731,58 @@ export class SchedulesService {
   // 날짜를 YYYY-MM-DD HH:mm:ss 형식으로 변환하는 함수
   private async formatDateToYYYYMMDDHHMMSS(date: Date): Promise<string> {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1
+    const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
-    // console.log(
-    //   `date지렁 : ${year}-${month}-${day} ${hours}:${minutes}:${seconds}`,
-    // );
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
   private async convertGptResponseToCreateDto(
     gptEvents: any[],
+    userUuid: string,
   ): Promise<VoiceScheduleResponseDto[]> {
-    // 모든 카테고리를 한 번에 조회
     const allCategories = await this.categoryRepository.find();
 
-    // 카테고리 이름을 키로, 카테고리 객체를 값으로 하는 맵 생성
     const categoryMap = allCategories.reduce((acc, category) => {
       acc[category.categoryName] = category;
       return acc;
     }, {});
 
-    return Promise.all(
-      gptEvents.map(async (event) => {
-        const dto = new VoiceScheduleResponseDto();
-        dto.userId = 1; // 임시 사용자 ID
-        dto.startDate = new Date(event.startDate);
-        dto.endDate = new Date(event.endDate);
-        dto.title = event.intent;
-        dto.place = event.place || '';
-        dto.isAllDay = event.isAllDay;
+    return gptEvents.map((event) => {
+      const dto = new VoiceScheduleResponseDto();
+      dto.userUuid = userUuid;
+      dto.startDate = new Date(event.startDate);
+      dto.endDate = new Date(event.endDate);
+      dto.title = event.intent;
+      dto.place = event.place || '';
+      dto.isAllDay = event.isAllDay;
 
-        // 카테고리 매핑
-        const category = categoryMap[event.category] || categoryMap['기타'];
-        dto.category = category; // 전체 카테고리 객체 설정
-        return dto;
-      }),
-    );
+      dto.category = categoryMap[event.category] || categoryMap['기타'];
+      return dto;
+    });
   }
+
   async transcribeRTZRAndFetchResultWithGpt(
     file: Express.Multer.File,
     currentDateTime: string,
+    userUuid: string,
   ) {
+    await this.validateUser(userUuid);
     const transcribe =
       await this.voiceTranscriptionService.RTZRTranscribeResult(file);
-    const result = await this.processWithGpt(transcribe, currentDateTime);
-    return result;
+    return this.processWithGpt(transcribe, currentDateTime, userUuid);
   }
 
   async transcribeWhisperAndFetchResultWithGpt(
     file: Express.Multer.File,
     currentDateTime: string,
+    userUuid: string,
   ) {
+    await this.validateUser(userUuid);
     const transcribe =
       await this.voiceTranscriptionService.whisperTranscribeResult(file);
-    const result = await this.processWithGpt(transcribe, currentDateTime);
-    return result;
+    return this.processWithGpt(transcribe, currentDateTime, userUuid);
   }
 }

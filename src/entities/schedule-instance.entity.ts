@@ -27,4 +27,13 @@ export class ScheduleInstance {
 
   @Column({ name: 'exception_memo', nullable: true })
   exceptionMemo?: string;
+
+  @Column({ name: 'exception_title', nullable: true })
+  exceptionTitle?: string;
+
+  @Column({ name: 'exception_place', nullable: true })
+  exceptionPlace?: string;
+
+  @Column({ name: 'exception_is_all_day', nullable: true })
+  exceptionIsAllDay?: boolean;
 }

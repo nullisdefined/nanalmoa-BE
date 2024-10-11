@@ -248,8 +248,6 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
   @ApiOperation({ summary: '액세스 토큰 갱신' })
   @ApiResponse({
     status: 200,
@@ -265,17 +263,26 @@ export class AuthController {
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader) {
-        throw new UnauthorizedException('인증 토큰이 없습니다.');
+        throw new BadRequestException('인증 토큰이 없습니다.');
       }
 
       const [, token] = authHeader.split(' ');
+
       const decodedToken = this.jwtService.decode(token);
 
       if (!decodedToken || typeof decodedToken === 'string') {
-        throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+        throw new BadRequestException('유효하지 않은 토큰 형식입니다.');
       }
 
       const { sub: userUuid, socialProvider } = decodedToken;
+
+      try {
+        this.jwtService.verify(token);
+      } catch (error) {
+        if (error.name !== 'TokenExpiredError') {
+          throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+        }
+      }
 
       const newTokens = await this.authService.refreshAccessToken(
         userUuid,
@@ -284,6 +291,12 @@ export class AuthController {
       );
       return newTokens;
     } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException
+      ) {
+        throw error;
+      }
       throw new UnauthorizedException('액세스 토큰 갱신 실패');
     }
   }
