@@ -12,5 +12,6 @@ import { UsersRoutineService } from './users-routine.service';
   imports: [TypeOrmModule.forFeature([Auth, User, UserRoutine])],
   controllers: [UsersController, UsersRoutineController],
   providers: [UsersService, UsersRoutineService],
+  exports: [UsersService],
 })
 export class UsersModule {}
