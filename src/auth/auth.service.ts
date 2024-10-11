@@ -553,13 +553,14 @@ export class AuthService {
   }
 
   async revokeSocialConnection(
-    provider: AuthProvider,
+    userUuid: string,
     accessToken: string,
+    provider: AuthProvider,
   ): Promise<void> {
     try {
       switch (provider) {
         case AuthProvider.KAKAO:
-          await this.revokeKakaoConnection(accessToken);
+          await this.revokeKakaoConnection(userUuid);
           break;
         case AuthProvider.NAVER:
           await this.revokeNaverConnection(accessToken);
@@ -569,27 +570,46 @@ export class AuthService {
       }
     } catch (error) {
       console.error(`${provider} unlink 오류`, error);
-      throw new InternalServerErrorException(`${provider} 연결 해제 실패`);
+      throw new InternalServerErrorException(
+        `${provider} 연결 해제 실패: ${error.message}`,
+      );
     }
   }
 
-  private async revokeKakaoConnection(accessToken: string): Promise<void> {
-    const clientId = this.configService.get<string>('KAKAO_CLIENT_ID');
+  private async revokeKakaoConnection(userUuid: string): Promise<void> {
+    const clientId = this.configService.get<string>('KAKAO_ADMIN');
     if (!clientId) {
       throw new Error('KAKAO_CLIENT_ID가 설정되지 않았습니다.');
     }
 
     try {
+      const auth = await this.authRepository.findOne({
+        where: {
+          userUuid,
+          authProvider: AuthProvider.KAKAO,
+        },
+      });
+
+      if (!auth || !auth.oauthId) {
+        throw new Error('카카오 연동 정보를 찾을 수 없습니다.');
+      }
+
       await axios.post(
         'https://kapi.kakao.com/v1/user/unlink',
         {},
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `KakaoAK ${clientId}`,
             'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          params: {
+            target_id_type: 'user_id',
+            target_id: auth.oauthId,
           },
         },
       );
+
+      await this.authRepository.remove(auth);
     } catch (error) {
       console.error(
         '카카오 연결 해제 오류:',

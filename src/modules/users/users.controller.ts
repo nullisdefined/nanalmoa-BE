@@ -179,8 +179,9 @@ export class UsersController {
           auth.authProvider === AuthProvider.NAVER
         ) {
           await this.authService.revokeSocialConnection(
-            auth.authProvider,
+            userUuid,
             auth.refreshToken,
+            auth.authProvider,
           );
         }
       }
