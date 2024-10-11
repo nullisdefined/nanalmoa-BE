@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-@Entity('manager-subordinate')
+@Entity('manager_subordinate')
 export class ManagerSubordinate {
   @PrimaryGeneratedColumn({ name: 'user_manager_id' })
   userManagerId: number;

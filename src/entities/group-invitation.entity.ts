@@ -10,7 +10,7 @@ import {
 import { Group } from './group.entity';
 import { InvitationStatus } from './manager-invitation.entity';
 
-@Entity() // 그룹 초대용
+@Entity('group_invitation') // 그룹 초대용
 export class GroupInvitation {
   @PrimaryGeneratedColumn({
     name: 'group_invitation_id',
