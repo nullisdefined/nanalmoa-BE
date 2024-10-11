@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { Group } from './group.entity';
 
-@Entity() // 사용자와 그룹 간의 관계를 나타내는 중간 테이블
+@Entity('user_group') // 사용자와 그룹 간의 관계를 나타내는 중간 테이블
 // 사용자가 그룹의 관리자인지 여부(isAdmin)도 저장
 export class UserGroup {
   @PrimaryGeneratedColumn({ name: 'user_group_id' })
