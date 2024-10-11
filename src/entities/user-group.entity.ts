@@ -15,8 +15,8 @@ export class UserGroup {
   @PrimaryGeneratedColumn({ name: 'user_group_id' })
   userGroupId: number;
 
-  @Column()
-  user_uuid: string;
+  @Column({ name: 'user_uuid' })
+  userUuid: string;
 
   @ManyToOne(() => Group, (group) => group.userGroups)
   @JoinColumn({ name: 'group_id' })
