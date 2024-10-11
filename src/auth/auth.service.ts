@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -67,7 +68,11 @@ export class AuthService {
   }
 
   isPhoneNumberVerified(phoneNumber: string): boolean {
-    return this.isVerified(this.verifiedPhoneNumbers, phoneNumber);
+    const verifiedAt = this.verifiedPhoneNumbers.get(phoneNumber);
+    if (!verifiedAt) return false;
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    return verifiedAt > tenMinutesAgo;
   }
 
   isEmailVerified(email: string): boolean {
@@ -93,30 +98,19 @@ export class AuthService {
 
   async signupWithPhoneNumber(
     phoneNumber: string,
-    verificationCode: string,
     name?: string,
     email?: string,
     profileImage?: string,
   ): Promise<BasicSignupResponseDto> {
-    const storedData = this.verificationCodes.get(phoneNumber);
-    if (!storedData || !storedData.isVerified) {
+    if (!this.isPhoneNumberVerified(phoneNumber)) {
       throw new BadRequestException('전화번호 인증이 필요합니다.');
-    }
-
-    if (storedData.code !== verificationCode) {
-      throw new BadRequestException('유효하지 않은 인증 코드입니다.');
-    }
-
-    if (new Date() > storedData.expiresAt) {
-      this.verificationCodes.delete(phoneNumber);
-      throw new BadRequestException('인증 코드가 만료되었습니다.');
     }
 
     const existingUser = await this.userRepository.findOne({
       where: { phoneNumber },
     });
     if (existingUser) {
-      throw new BadRequestException('이미 존재하는 전화번호입니다.');
+      throw new ConflictException('이미 존재하는 전화번호입니다.');
     }
 
     const newUser = this.userRepository.create({
@@ -134,9 +128,8 @@ export class AuthService {
     });
     await this.authRepository.save(newAuth);
 
-    this.verificationCodes.delete(phoneNumber);
+    this.verifiedPhoneNumbers.delete(phoneNumber);
 
-    // 회원가입 후 로그인 처리
     const { accessToken, refreshToken } =
       await this.loginWithPhoneNumber(newUser);
 
@@ -557,5 +550,80 @@ export class AuthService {
       subject,
       html,
     });
+  }
+
+  async revokeSocialConnection(
+    provider: AuthProvider,
+    accessToken: string,
+  ): Promise<void> {
+    try {
+      switch (provider) {
+        case AuthProvider.KAKAO:
+          await this.revokeKakaoConnection(accessToken);
+          break;
+        case AuthProvider.NAVER:
+          await this.revokeNaverConnection(accessToken);
+          break;
+        default:
+          throw new Error(`${provider}는 지원하지 않는 소셜 프로바이더입니다.`);
+      }
+    } catch (error) {
+      console.error(`${provider} unlink 오류`, error);
+      throw new InternalServerErrorException(`${provider} 연결 해제 실패`);
+    }
+  }
+
+  private async revokeKakaoConnection(accessToken: string): Promise<void> {
+    const clientId = this.configService.get<string>('KAKAO_CLIENT_ID');
+    if (!clientId) {
+      throw new Error('KAKAO_CLIENT_ID가 설정되지 않았습니다.');
+    }
+
+    try {
+      await axios.post(
+        'https://kapi.kakao.com/v1/user/unlink',
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        },
+      );
+    } catch (error) {
+      console.error(
+        '카카오 연결 해제 오류:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  }
+
+  private async revokeNaverConnection(accessToken: string): Promise<void> {
+    const clientId = this.configService.get<string>('NAVER_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('NAVER_CLIENT_SECRET');
+    if (!clientId || !clientSecret) {
+      throw new Error(
+        'NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 설정되지 않았습니다',
+      );
+    }
+
+    try {
+      await axios.get('https://nid.naver.com/oauth2.0/token', {
+        params: {
+          grant_type: 'delete',
+          client_id: clientId,
+          client_secret: clientSecret,
+          access_token: accessToken,
+          service_provider: 'NAVER',
+        },
+      });
+    } catch (error) {
+      console.error(
+        '네이버 연결 해제 오류:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
   }
 }

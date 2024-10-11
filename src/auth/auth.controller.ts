@@ -223,7 +223,6 @@ export class AuthController {
       verificationCode,
       name,
       email,
-      profileImage,
     );
   }
 

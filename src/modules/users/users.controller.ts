@@ -8,6 +8,9 @@ import {
   BadRequestException,
   Put,
   ConflictException,
+  Delete,
+  NotFoundException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +28,8 @@ import {
 import { User } from '@/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthService } from '@/auth/auth.service';
+import { DataSource, Repository } from 'typeorm';
+import { AuthProvider } from '@/entities/auth.entity';
 
 @ApiTags('Users')
 @Controller('users')
@@ -34,6 +39,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
+    private dataSource: DataSource,
   ) {}
 
   @Get('me')
@@ -140,5 +146,65 @@ export class UsersController {
       message: '회원정보가 성공적으로 수정되었습니다.',
       user: updatedUser,
     };
+  }
+
+  @Delete('delete')
+  @ApiOperation({ summary: '회원 탈퇴' })
+  @ApiResponse({ status: 200, description: '회원 탈퇴 성공' })
+  @ApiResponse({ status: 401, description: '인증 실패' })
+  @ApiResponse({ status: 404, description: '사용자를 찾을 수 없음' })
+  @ApiResponse({ status: 500, description: '서버 오류' })
+  async deleteAccount(@Req() req): Promise<{ message: string }> {
+    const userUuid = req.user.userUuid;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const user = await queryRunner.manager.findOne(User, {
+        where: { userUuid },
+        relations: ['auths', 'schedules'],
+      });
+
+      if (!user) {
+        throw new NotFoundException('사용자를 찾을 수 없습니다.');
+      }
+
+      // OAuth 서비스 연동 해제
+      for (const auth of user.auths) {
+        if (
+          auth.authProvider === AuthProvider.KAKAO ||
+          auth.authProvider === AuthProvider.NAVER
+        ) {
+          await this.authService.revokeSocialConnection(
+            auth.authProvider,
+            auth.refreshToken,
+          );
+        }
+      }
+
+      await queryRunner.manager.remove(user.auths);
+
+      await queryRunner.manager.remove(user.schedules);
+
+      await queryRunner.manager.remove(user);
+
+      await queryRunner.commitTransaction();
+
+      return { message: '회원 탈퇴가 성공적으로 처리되었습니다.' };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.error('회원 탈퇴 처리 중 오류:', error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        '회원 탈퇴 처리 중 오류가 발생했습니다.',
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
