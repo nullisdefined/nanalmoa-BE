@@ -10,7 +10,7 @@ import { UserGroup } from './user-group.entity';
 import { GroupSchedule } from './group-schedule.entity';
 import { GroupInvitation } from './group-invitation.entity';
 
-@Entity() // 그룹 엔티티
+@Entity('group') // 그룹 엔티티
 export class Group {
   @PrimaryGeneratedColumn({
     name: 'group_id',

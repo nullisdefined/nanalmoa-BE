@@ -16,6 +16,7 @@ import { GroupInvitation } from './entities/group-invitation.entity';
 import { GroupSchedule } from './entities/group-schedule.entity';
 import { UserGroup } from './entities/user-group.entity';
 import { ScheduleInstance } from './entities/schedule-instance.entity';
+import { UserRoutine } from './entities/user-routine.entity';
 
 config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
 
@@ -38,6 +39,7 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     GroupSchedule,
     UserGroup,
     ScheduleInstance,
+    UserRoutine,
   ],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
   seeds: [CategorySeeder, UserSeeder],

@@ -4,12 +4,14 @@ import {
   CreateDateColumn,
   Entity,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Auth } from './auth.entity';
 import { Schedule } from './schedule.entity';
+import { UserRoutine } from './user-routine.entity';
 
 @Entity('user')
 export class User {
@@ -55,4 +57,7 @@ export class User {
 
   @OneToMany(() => Schedule, (schedule) => schedule.user)
   schedules: Schedule[];
+
+  @OneToOne(() => UserRoutine, (userRoutine) => userRoutine.user)
+  routine: UserRoutine;
 }
