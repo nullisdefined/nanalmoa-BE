@@ -99,20 +99,19 @@ export class GroupController {
   @ApiResponse({ status: 201, description: '초대가 성공적으로 생성됨' })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
   @ApiResponse({ status: 403, description: '권한 없음' })
-  async inviteGroupMember(
+  async inviteGroupMembers(
     @Body() inviteGroupMemberDto: InviteGroupMemberDto,
     @Req() req: Request,
   ) {
     const inviterUuid = req.user['userUuid'];
-    if (inviterUuid === inviteGroupMemberDto.inviteeUuid) {
+    if (inviteGroupMemberDto.inviteeUuids.includes(inviterUuid)) {
       throw new ForbiddenException('자신을 초대할 수 없습니다.');
     }
-    return this.groupService.inviteGroupMember(
+    return this.groupService.inviteGroupMembers(
       inviteGroupMemberDto,
       inviterUuid,
     );
   }
-
   @Delete(':groupId/members/:memberUuid')
   @ApiOperation({ summary: '그룹 멤버 추방' })
   @ApiParam({ name: 'groupId', description: '그룹 ID' })

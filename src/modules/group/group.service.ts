@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Group } from '@/entities/group.entity';
 import { UserGroup } from '@/entities/user-group.entity';
 import { GroupInfoResponseDto } from './dto/response-group.dto';
@@ -17,6 +17,7 @@ import { InvitationStatus } from '@/entities/manager-invitation.entity';
 import { RespondToInvitationDto } from './dto/response-invitation.dto';
 import { GroupMemberResponseDto } from './dto/response-group-member.dto';
 import { RemoveGroupMemberDto } from './dto/remove-group-member.dto';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class GroupService {
@@ -28,6 +29,7 @@ export class GroupService {
     @InjectRepository(GroupInvitation)
     private groupInvitationRepository: Repository<GroupInvitation>,
     private dataSource: DataSource,
+    private readonly usersService: UsersService,
   ) {}
 
   async createGroup(
@@ -67,11 +69,11 @@ export class GroupService {
     return response;
   }
 
-  async inviteGroupMember(
+  async inviteGroupMembers(
     inviteGroupMemberDto: InviteGroupMemberDto,
     inviterUuid: string,
   ) {
-    const { groupId, inviteeUuid } = inviteGroupMemberDto;
+    const { groupId, inviteeUuids } = inviteGroupMemberDto;
 
     const group = await this.groupRepository.findOne({
       where: { groupId },
@@ -81,6 +83,7 @@ export class GroupService {
       throw new NotFoundException('해당 그룹을 찾지 못했습니다.');
     }
 
+    // 5. 초대자가 그룹장인지 확인
     const isCreator = group.userGroups.some(
       (ug) => ug.userUuid === inviterUuid && ug.isAdmin,
     );
@@ -88,44 +91,73 @@ export class GroupService {
       throw new ForbiddenException('그룹 생성자만이 초대를 할 수 있습니다.');
     }
 
-    const existingMember = await this.userGroupRepository.findOne({
-      where: { group: { groupId }, userUuid: inviteeUuid },
-    });
+    const results = await Promise.all(
+      inviteeUuids.map(async (inviteeUuid) => {
+        try {
+          // 자기 자신을 초대하지 못하도록 체크
+          if (inviteeUuid === inviterUuid) {
+            throw new BadRequestException('자기 자신을 초대할 수 없습니다.');
+          }
 
-    if (existingMember) {
-      throw new BadRequestException('이미 그룹 멤버입니다.');
-    }
+          // 유저 존재 여부 체크
+          const userExists =
+            await this.usersService.checkUserExists(inviteeUuid);
+          if (!userExists) {
+            throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
+          }
 
-    const existingInvitation = await this.groupInvitationRepository.findOne({
-      where: {
-        group: { groupId },
-        inviteeUuid,
-        status: InvitationStatus.PENDING,
-      },
-    });
+          // 해당 그룹에 이미 속해 있는지 체크
+          const existingMember = await this.userGroupRepository.findOne({
+            where: { group: { groupId }, userUuid: inviteeUuid },
+          });
+          if (existingMember) {
+            throw new BadRequestException('이미 그룹의 멤버입니다.');
+          }
 
-    if (existingInvitation) {
-      if (existingInvitation.status === InvitationStatus.PENDING) {
-        throw new BadRequestException('이미 대기 중인 초대가 있습니다.');
-      }
-      if (existingInvitation.status === InvitationStatus.ACCEPTED) {
-        throw new BadRequestException('이미 수락된 초대가 있습니다.');
-      }
-    }
+          // 기존 보내고 있는 초대가 없어야 함 (ACCEPTED, PENDING 상태가 아니어야 함)
+          const existingInvitation =
+            await this.groupInvitationRepository.findOne({
+              where: {
+                group: { groupId },
+                inviteeUuid,
+                status: In([
+                  InvitationStatus.ACCEPTED,
+                  InvitationStatus.PENDING,
+                ]),
+              },
+            });
 
-    const newInvitation = this.groupInvitationRepository.create({
-      group: { groupId },
-      inviterUuid,
-      inviteeUuid,
-      status: InvitationStatus.PENDING,
-    });
+          if (existingInvitation) {
+            if (existingInvitation.status === InvitationStatus.ACCEPTED) {
+              throw new BadRequestException('이미 수락된 초대가 있습니다.');
+            } else {
+              throw new BadRequestException('이미 대기 중인 초대가 있습니다.');
+            }
+          }
 
-    const savedInvitation =
-      await this.groupInvitationRepository.save(newInvitation);
+          // 모든 조건을 만족하면 새로운 초대 생성
+          const newInvitation = this.groupInvitationRepository.create({
+            group: { groupId },
+            inviterUuid,
+            inviteeUuid,
+            status: InvitationStatus.PENDING,
+          });
+
+          const savedInvitation =
+            await this.groupInvitationRepository.save(newInvitation);
+          return {
+            inviteeUuid,
+            status: InvitationStatus.PENDING,
+            invitationId: savedInvitation.groupInvitationId,
+          };
+        } catch (error) {
+          return { inviteeUuid, message: error.message };
+        }
+      }),
+    );
 
     return {
-      message: '초대가 성공적으로 보내졌습니다.',
-      invitationId: savedInvitation.groupInvitationId,
+      results,
     };
   }
 
