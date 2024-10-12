@@ -53,6 +53,132 @@ export class SchedulesService {
     });
   }
 
+  async findAllByUserUuid(userUuid: string): Promise<ResponseScheduleDto[]> {
+    const currentDate = new Date();
+    const futureDate = new Date(
+      currentDate.getFullYear() + 1,
+      currentDate.getMonth(),
+      currentDate.getDate(),
+    );
+
+    const regularSchedules = await this.schedulesRepository.find({
+      where: {
+        userUuid,
+        startDate: MoreThanOrEqual(currentDate),
+        isRecurring: false,
+      },
+      relations: ['category'],
+    });
+
+    const recurringSchedules = await this.schedulesRepository.find({
+      where: {
+        userUuid,
+        isRecurring: true,
+        repeatEndDate: MoreThanOrEqual(currentDate),
+      },
+      relations: ['category', 'instances'],
+    });
+
+    const scheduleInstances = await this.scheduleInstanceRepository.find({
+      where: {
+        schedule: { userUuid, isRecurring: true },
+        instanceStartDate: Between(currentDate, futureDate),
+      },
+      relations: ['schedule', 'schedule.category'],
+    });
+
+    const expandedRecurringSchedules = this.expandRecurringSchedules(
+      recurringSchedules,
+      scheduleInstances,
+      currentDate,
+      futureDate,
+    );
+
+    const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
+    allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+    return allSchedules.map((schedule) => this.convertToResponseDto(schedule));
+  }
+
+  private expandRecurringSchedules(
+    schedules: Schedule[],
+    instances: ScheduleInstance[],
+    startDate: Date,
+    endDate: Date,
+  ): (Schedule & { isException?: boolean })[] {
+    const expandedSchedules: (Schedule & { isException?: boolean })[] = [];
+
+    for (const schedule of schedules) {
+      let currentDate = new Date(
+        Math.max(schedule.startDate.getTime(), startDate.getTime()),
+      );
+      const scheduleEndDate = schedule.repeatEndDate || endDate;
+
+      while (currentDate <= scheduleEndDate && currentDate <= endDate) {
+        if (this.isOccurrenceDate(schedule, currentDate)) {
+          const instance = instances.find(
+            (i) =>
+              i.schedule.scheduleId === schedule.scheduleId &&
+              i.instanceStartDate.getTime() === currentDate.getTime(),
+          );
+
+          if (instance) {
+            expandedSchedules.push(this.createScheduleFromInstance(instance));
+          } else {
+            expandedSchedules.push(
+              this.createOccurrence(schedule, currentDate),
+            );
+          }
+        }
+        currentDate = this.getNextOccurrenceDate(schedule, currentDate);
+      }
+    }
+
+    return expandedSchedules;
+  }
+
+  private createScheduleFromInstance(
+    instance: ScheduleInstance,
+  ): Schedule & { isException: boolean } {
+    return {
+      ...instance.schedule,
+      startDate: instance.instanceStartDate,
+      endDate: instance.instanceEndDate,
+      title: instance.exceptionTitle || instance.schedule.title,
+      place: instance.exceptionPlace || instance.schedule.place,
+      isAllDay: instance.exceptionIsAllDay ?? instance.schedule.isAllDay,
+      memo: instance.exceptionMemo || instance.schedule.memo,
+      isException: instance.isException,
+    };
+  }
+
+  private createOccurrence(
+    schedule: Schedule,
+    startDate: Date,
+  ): Schedule & { isException: boolean } {
+    const duration = schedule.endDate.getTime() - schedule.startDate.getTime();
+    const endDate = new Date(startDate.getTime() + duration);
+
+    return {
+      ...schedule,
+      startDate,
+      endDate,
+      isException: false,
+    };
+  }
+
+  convertToResponseDto(
+    schedule: Schedule & { isException?: boolean },
+    instances?: ScheduleInstance[],
+  ): ResponseScheduleDto {
+    return new ResponseScheduleDto(
+      schedule,
+      schedule.category,
+      instances,
+      schedule.isException || false,
+    );
+  }
+
   private async findSchedulesBetweenDates(
     userUuid: string,
     startDate: Date,
@@ -137,10 +263,12 @@ export class SchedulesService {
   }
 
   async createRecurringSchedule(
+    userUuid: string,
     createDto: CreateScheduleDto,
   ): Promise<Schedule> {
     const schedule = this.schedulesRepository.create({
       ...createDto,
+      userUuid,
       isRecurring: true,
     });
     return this.schedulesRepository.save(schedule);
@@ -193,56 +321,22 @@ export class SchedulesService {
     }
   }
 
-  private expandRecurringSchedules(
-    recurringSchedules: Schedule[],
-    startDate: Date,
-    endDate: Date,
-  ): Schedule[] {
-    const expandedSchedules: Schedule[] = [];
-
-    for (const schedule of recurringSchedules) {
-      let currentDate = new Date(
-        Math.max(schedule.startDate.getTime(), startDate.getTime()),
-      );
-      const scheduleEndDate = schedule.repeatEndDate || endDate;
-
-      while (currentDate <= scheduleEndDate && currentDate <= endDate) {
-        if (this.isEventOccurring(schedule, currentDate)) {
-          const instance = schedule.instances.find(
-            (i) =>
-              i.instanceStartDate.getTime() === currentDate.getTime() &&
-              i.isException,
-          );
-
-          if (instance) {
-            expandedSchedules.push({
-              ...schedule,
-              scheduleId: undefined,
-              startDate: instance.instanceStartDate,
-              endDate: instance.instanceEndDate,
-              title: instance.exceptionTitle || schedule.title,
-              place: instance.exceptionPlace || schedule.place,
-              isAllDay: instance.exceptionIsAllDay ?? schedule.isAllDay,
-              memo: instance.exceptionMemo || schedule.memo,
-            });
-          } else {
-            expandedSchedules.push({
-              ...schedule,
-              scheduleId: undefined,
-              startDate: new Date(currentDate),
-              endDate: new Date(
-                currentDate.getTime() +
-                  (schedule.endDate.getTime() - schedule.startDate.getTime()),
-              ),
-            });
-          }
-        }
-
-        currentDate = this.getNextOccurrence(schedule, currentDate);
-      }
+  private isOccurrenceDate(schedule: Schedule, date: Date): boolean {
+    switch (schedule.repeatType) {
+      case 'daily':
+        return true;
+      case 'weekly':
+        return date.getDay() === schedule.startDate.getDay();
+      case 'monthly':
+        return date.getDate() === schedule.startDate.getDate();
+      case 'yearly':
+        return (
+          date.getMonth() === schedule.startDate.getMonth() &&
+          date.getDate() === schedule.startDate.getDate()
+        );
+      default:
+        return false;
     }
-
-    return expandedSchedules;
   }
 
   private isEventOccurring(schedule: Schedule, date: Date): boolean {
@@ -258,17 +352,28 @@ export class SchedulesService {
     }
   }
 
-  private getNextOccurrence(schedule: Schedule, currentDate: Date): Date {
+  private getNextOccurrenceDate(schedule: Schedule, currentDate: Date): Date {
     const nextDate = new Date(currentDate);
     switch (schedule.repeatType) {
       case 'daily':
-        nextDate.setDate(nextDate.getDate() + schedule.recurringInterval);
+        nextDate.setDate(
+          nextDate.getDate() + (schedule.recurringInterval || 1),
+        );
         break;
       case 'weekly':
-        nextDate.setDate(nextDate.getDate() + 7 * schedule.recurringInterval);
+        nextDate.setDate(
+          nextDate.getDate() + 7 * (schedule.recurringInterval || 1),
+        );
         break;
       case 'monthly':
-        nextDate.setMonth(nextDate.getMonth() + schedule.recurringInterval);
+        nextDate.setMonth(
+          nextDate.getMonth() + (schedule.recurringInterval || 1),
+        );
+        break;
+      case 'yearly':
+        nextDate.setFullYear(
+          nextDate.getFullYear() + (schedule.recurringInterval || 1),
+        );
         break;
     }
     return nextDate;
@@ -303,14 +408,6 @@ export class SchedulesService {
         isException: true,
       });
     }
-  }
-
-  convertToResponseDto(
-    schedule: Schedule,
-    category: Category,
-    instances?: ScheduleInstance[],
-  ): ResponseScheduleDto {
-    return new ResponseScheduleDto(schedule, category, instances);
   }
 
   // 반복 일정 인스턴스 생성
@@ -416,73 +513,15 @@ export class SchedulesService {
   async findOne(id: number): Promise<ResponseScheduleDto> {
     const schedule = await this.schedulesRepository.findOne({
       where: { scheduleId: id },
-      relations: ['category'],
+      relations: ['category', 'instances'],
     });
     if (!schedule) {
       throw new NotFoundException(
         `해당 id : ${id}를 가진 일정을 찾을 수 없습니다. `,
       );
     }
-    return this.convertToResponseDto(schedule, schedule.category);
+    return this.convertToResponseDto(schedule, schedule.instances);
   }
-
-  async findAllByUserUuid(userUuid: string): Promise<ResponseScheduleDto[]> {
-    await this.validateUser(userUuid);
-
-    const schedules = await this.schedulesRepository.find({
-      where: { user: { userUuid } },
-      order: { startDate: 'ASC' },
-      relations: ['category', 'user'],
-    });
-
-    return schedules.map((schedule) =>
-      this.convertToResponseDto(schedule, schedule.category),
-    );
-  }
-
-  // async findAllByUserId(userId: number): Promise<ResponseScheduleDto[]> {
-  //   // 일반 일정 조회
-  //   const regularSchedules = await this.schedulesRepository.find({
-  //     where: { userId: userId, repeatType: 'none' },
-  //     relations: ['category'],
-  //     order: { startDate: 'ASC' },
-  //   });
-
-  //   // 반복 일정 조회
-  //   const repeatingSchedules = await this.schedulesRepository.find({
-  //     where: { userId: userId, repeatType: Not('none') },
-  //     relations: ['category'],
-  //   });
-
-  //   // 현재 날짜로부터 1년 후까지의 반복 일정 인스턴스 조회
-  //   const startDate = new Date();
-  //   const endDate = new Date();
-  //   endDate.setFullYear(endDate.getFullYear() + 1);
-
-  //   const instances = await this.scheduleInstanceRepository.find({
-  //     where: {
-  //       schedule: { userId: userId },
-  //       instanceStartDate: Between(startDate, endDate),
-  //     },
-  //     relations: ['schedule', 'schedule.category'],
-  //   });
-
-  //   // 반복 일정 인스턴스를 Schedule 형태로 변환
-  //   const convertedInstances = instances.map((instance) => ({
-  //     ...instance.schedule,
-  //     startDate: instance.instanceStartDate,
-  //     endDate: instance.instanceEndDate,
-  //   }));
-
-  //   // 모든 일정을 합치고 날짜순으로 정렬
-  //   const allSchedules = [...regularSchedules, ...convertedInstances];
-  //   allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-
-  //   // ResponseScheduleDto 형식으로 변환하여 반환
-  //   return allSchedules.map(
-  //     (schedule) => new ResponseScheduleDto(schedule, schedule.category),
-  //   );
-  // }
 
   // 날짜 범위로 일정 조회
   async findByDateRange(

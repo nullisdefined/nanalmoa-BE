@@ -16,8 +16,6 @@ export class CreateScheduleDto {
     description: '특정 사용자의 UUID',
     example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
   })
-  @IsUUID()
-  @IsNotEmpty()
   userUuid: string;
 
   @ApiProperty({

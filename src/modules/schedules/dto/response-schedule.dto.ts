@@ -61,10 +61,10 @@ export class ResponseScheduleDto {
 
   @ApiProperty({
     description: '반복 유형',
-    enum: ['none', 'daily', 'weekly', 'monthly'],
+    enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
     example: 'none',
   })
-  repeatType: 'none' | 'daily' | 'weekly' | 'monthly';
+  repeatType: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
   @ApiProperty({
     description: '반복 종료 날짜',
@@ -73,15 +73,36 @@ export class ResponseScheduleDto {
   })
   repeatEndDate?: Date;
 
-  instances?: {
-    instanceStartDate: Date;
-    instanceEndDate: Date;
-  }[];
+  @ApiProperty({ description: '반복 일정 여부', example: false })
+  isRecurring: boolean;
+
+  @ApiProperty({ description: '반복 간격', example: 1, required: false })
+  recurringInterval?: number;
+
+  @ApiProperty({ description: '반복 요일', type: [Number], required: false })
+  recurringDaysOfWeek?: number[];
+
+  @ApiProperty({ description: '반복 일', example: 1, required: false })
+  recurringDayOfMonth?: number;
+
+  @ApiProperty({ description: '반복 월', example: 1, required: false })
+  recurringMonthOfYear?: number;
+
+  @ApiProperty({ description: '예외 일정 여부', required: false })
+  isException?: boolean;
+
+  @ApiProperty({
+    description: '일정 인스턴스',
+    type: [ScheduleInstance],
+    required: false,
+  })
+  instances?: ScheduleInstance[];
 
   constructor(
     schedule: Schedule,
     category: Category,
     instances?: ScheduleInstance[],
+    isException: boolean = false,
   ) {
     this.scheduleId = schedule.scheduleId;
     this.userUuid = schedule.userUuid;
@@ -91,15 +112,21 @@ export class ResponseScheduleDto {
     this.title = schedule.title || '새로운 일정';
     this.place = schedule.place;
     this.memo = schedule.memo;
-    this.isGroupSchedule = schedule.isGroupSchedule;
     this.isGroupSchedule =
-      (schedule.groupSchedules && schedule.groupSchedules.length > 0) || false;
+      schedule.isGroupSchedule ||
+      (schedule.groupSchedules && schedule.groupSchedules.length > 0);
     this.isAllDay = schedule.isAllDay;
+    this.repeatType = schedule.repeatType;
+    this.repeatEndDate = schedule.repeatEndDate;
+    this.isRecurring = schedule.isRecurring;
+    this.recurringInterval = schedule.recurringInterval;
+    this.recurringDaysOfWeek = schedule.recurringDaysOfWeek;
+    this.recurringDayOfMonth = schedule.recurringDayOfMonth;
+    this.recurringMonthOfYear = schedule.recurringMonthOfYear;
+    this.isException = isException;
+
     if (instances && instances.length > 0) {
-      this.instances = instances.map((instance) => ({
-        instanceStartDate: instance.instanceStartDate,
-        instanceEndDate: instance.instanceEndDate,
-      }));
+      this.instances = instances;
     }
   }
 }

@@ -246,15 +246,13 @@ export class SchedulesController {
     @Body() createRecurringScheduleDto: CreateRecurringScheduleDto,
   ): Promise<ResponseScheduleDto> {
     const userUuid = req.user.userUuid;
-    createRecurringScheduleDto.userUuid = userUuid;
-    createRecurringScheduleDto.categoryId =
-      createRecurringScheduleDto.categoryId || 7;
     const schedule = await this.schedulesService.createRecurringSchedule(
+      userUuid,
       createRecurringScheduleDto,
     );
     return this.schedulesService.convertToResponseDto(
       schedule,
-      schedule.category,
+      schedule.instances,
     );
   }
 
@@ -285,7 +283,7 @@ export class SchedulesController {
     );
     return this.schedulesService.convertToResponseDto(
       schedule,
-      schedule.category,
+      schedule.instances,
     );
   }
 
