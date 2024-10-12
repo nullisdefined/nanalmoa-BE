@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Group } from './group.entity';
 import { InvitationStatus } from './manager-invitation.entity';
+import { User } from './user.entity';
 
 @Entity('group_invitation') // 그룹 초대용
 export class GroupInvitation {
@@ -39,4 +40,12 @@ export class GroupInvitation {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @ManyToOne(() => User, (user) => user.receivedGroupInvitations)
+  @JoinColumn({ name: 'invitee_uuid', referencedColumnName: 'userUuid' })
+  invitee: User;
+
+  @ManyToOne(() => User, (user) => user.sentGroupInvitations)
+  @JoinColumn({ name: 'inviter_uuid', referencedColumnName: 'userUuid' })
+  inviter: User;
 }

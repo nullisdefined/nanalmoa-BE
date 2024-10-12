@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Auth } from './auth.entity';
 import { Schedule } from './schedule.entity';
 import { UserRoutine } from './user-routine.entity';
+import { GroupInvitation } from './group-invitation.entity';
 
 @Entity('user')
 export class User {
@@ -57,4 +58,10 @@ export class User {
 
   @OneToOne(() => UserRoutine, (userRoutine) => userRoutine.user)
   routine: UserRoutine;
+
+  @OneToMany(() => GroupInvitation, (invitation) => invitation.inviter)
+  sentGroupInvitations: GroupInvitation[];
+
+  @OneToMany(() => GroupInvitation, (invitation) => invitation.invitee)
+  receivedGroupInvitations: GroupInvitation[];
 }
