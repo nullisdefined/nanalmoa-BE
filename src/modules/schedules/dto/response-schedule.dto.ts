@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Schedule } from 'src/entities/schedule.entity';
 import { Category } from '@/entities/category.entity';
+import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 export class ResponseScheduleDto {
   @ApiProperty({ description: '일정 ID', example: 1 })
@@ -58,17 +59,47 @@ export class ResponseScheduleDto {
   @ApiProperty({ description: '종일 옵션', example: false })
   isAllDay: boolean;
 
-  constructor(schedule: Schedule, category: Category) {
+  @ApiProperty({
+    description: '반복 유형',
+    enum: ['none', 'daily', 'weekly', 'monthly'],
+    example: 'none',
+  })
+  repeatType: 'none' | 'daily' | 'weekly' | 'monthly';
+
+  @ApiProperty({
+    description: '반복 종료 날짜',
+    example: '2024-12-31T23:59:59Z',
+    required: false,
+  })
+  repeatEndDate?: Date;
+
+  instances?: {
+    instanceStartDate: Date;
+    instanceEndDate: Date;
+  }[];
+
+  constructor(
+    schedule: Schedule,
+    category: Category,
+    instances?: ScheduleInstance[],
+  ) {
     this.scheduleId = schedule.scheduleId;
     this.userUuid = schedule.userUuid;
     this.category = category;
     this.startDate = schedule.startDate;
     this.endDate = schedule.endDate;
-    this.title = schedule.title;
+    this.title = schedule.title || '새로운 일정';
     this.place = schedule.place;
     this.memo = schedule.memo;
+    this.isGroupSchedule = schedule.isGroupSchedule;
     this.isGroupSchedule =
       (schedule.groupSchedules && schedule.groupSchedules.length > 0) || false;
     this.isAllDay = schedule.isAllDay;
+    if (instances && instances.length > 0) {
+      this.instances = instances.map((instance) => ({
+        instanceStartDate: instance.instanceStartDate,
+        instanceEndDate: instance.instanceEndDate,
+      }));
+    }
   }
 }

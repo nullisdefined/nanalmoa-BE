@@ -50,6 +50,9 @@ export class User {
   @Column({ default: false, name: 'is_manager' })
   isManager: boolean;
 
+  @Column({ length: 255, nullable: true, name: 'address' })
+  address: string;
+
   @OneToMany(() => Auth, (auth) => auth.user)
   auths: Auth[];
 

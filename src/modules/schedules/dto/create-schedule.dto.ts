@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsOptional,
   IsUUID,
+  IsEnum,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -97,4 +98,25 @@ export class CreateScheduleDto {
   @IsBoolean()
   @Transform(({ value }) => (value !== undefined ? value : false)) // 기본값 설정
   isAllDay?: boolean;
+
+  @ApiProperty({
+    description: '반복 유형',
+    enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
+    default: 'none',
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(['none', 'daily', 'weekly', 'monthly', 'yearly'])
+  @Transform(({ value }) => value ?? 'none')
+  repeatType?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+  @ApiProperty({
+    description: '반복 종료 날짜',
+    required: false,
+    example: '2024-12-31T23:59:59Z',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  repeatEndDate?: Date;
 }

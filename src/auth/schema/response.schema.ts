@@ -13,24 +13,6 @@ export const NaverLoginResponseSchema: SchemaObject = {
       description: '발급된 리프레시 토큰',
       example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
     },
-    socialProvider: {
-      type: 'string',
-      description: '소셜 프로바이더',
-      example: 'naver',
-    },
-    user: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c' },
-        email: { type: 'string', example: 'user@example.com' },
-        phoneNumber: { type: 'string', example: '01012345678' },
-        name: { type: 'string', example: '홍길동' },
-        profileImage: {
-          type: 'string',
-          example: 'https://example.com/profile.jpg',
-        },
-      },
-    },
   },
 };
 
@@ -47,24 +29,6 @@ export const KakaoLoginResponseSchema: SchemaObject = {
       description: '발급된 리프레시 토큰',
       example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
     },
-    socialProvider: {
-      type: 'string',
-      description: '소셜 프로바이더',
-      example: 'kakao',
-    },
-    user: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c' },
-        email: { type: 'string', example: 'user@example.com' },
-        phoneNumber: { type: 'string', example: '01012345678' },
-        name: { type: 'string', example: '홍길동' },
-        profileImage: {
-          type: 'string',
-          example: 'https://example.com/profile.jpg',
-        },
-      },
-    },
   },
 };
 
@@ -80,22 +44,6 @@ export const BasicLoginResponseSchema: SchemaObject = {
       type: 'string',
       description: '발급된 리프레시 토큰',
       example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-    },
-    user: {
-      type: 'object',
-      properties: {
-        id: {
-          type: 'string',
-          example: 'aefc3ab2-c527-4858-9971-bf8e6543d56c',
-        },
-        phoneNumber: { type: 'string', example: '01012345678' },
-        name: { type: 'string', example: '김재우' },
-        email: { type: 'string', example: null },
-        profileImage: {
-          type: 'string',
-          example: null,
-        },
-      },
     },
   },
 };
@@ -128,49 +76,6 @@ export const BasicSignupResponseSchema: SchemaObject = {
       type: 'string',
       description: '발급된 리프레시 토큰',
       example: 'tyvx8E0QQgMsAQaNB2DV-a2eqtjk5W6AAAAAgop',
-    },
-    user: {
-      type: 'object',
-      properties: {
-        userUuid: {
-          type: 'string',
-          example: 'b5944322-becb-4d01-b0a3-77c7b3fbfac5',
-        },
-        name: {
-          type: 'string',
-          example: '김재우',
-        },
-        phoneNumber: {
-          type: 'string',
-          example: '01012345678',
-        },
-        profileImage: {
-          type: 'string',
-          example: null,
-        },
-        email: {
-          type: 'string',
-          example: null,
-        },
-        userId: {
-          type: 'number',
-          example: 1,
-        },
-        createdAt: {
-          type: 'string',
-          format: 'date-time',
-          example: '2024-10-05T01:46:17.431Z',
-        },
-        updatedAt: {
-          type: 'string',
-          format: 'date-time',
-          example: '2024-10-05T01:46:17.431Z',
-        },
-        isManager: {
-          type: 'boolean',
-          example: false,
-        },
-      },
     },
   },
 };

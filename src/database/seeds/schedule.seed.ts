@@ -3,7 +3,7 @@ import { Seeder } from 'typeorm-extension';
 import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '../../entities/category.entity';
 import { faker } from '@faker-js/faker/locale/ko';
-import { User } from '@/entities/user.entity';
+import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 export class ScheduleSeeder implements Seeder {
   private scheduleTemplates = [
@@ -500,7 +500,8 @@ export class ScheduleSeeder implements Seeder {
 
   async run(dataSource: DataSource): Promise<void> {
     const categoryRepository = dataSource.getRepository(Category);
-    const userRepository = dataSource.getRepository(User);
+    const scheduleInstanceRepository =
+      dataSource.getRepository(ScheduleInstance);
 
     const categories = await categoryRepository.find();
     if (categories.length === 0) {
@@ -508,20 +509,7 @@ export class ScheduleSeeder implements Seeder {
       return;
     }
 
-    // 사용자 확인 또는 생성
-    let user = await userRepository.findOne({
-      where: { userUuid: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d' },
-    });
-    if (!user) {
-      user = await userRepository.save({
-        userUuid: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-        name: 'Test User',
-        email: 'testuser@example.com',
-      });
-      console.log('새 사용자가 생성되었습니다:', user.userUuid);
-    }
-
-    const years = [2022, 2023, 2024, 2025];
+    const years = [2023, 2024, 2025];
     const schedules = [];
 
     for (const year of years) {
@@ -533,7 +521,7 @@ export class ScheduleSeeder implements Seeder {
           from: startRange,
           to: endRange,
         });
-        const duration = faker.number.int({ min: 1, max: 7 });
+        const duration = faker.number.int({ min: 1, max: 3 });
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + duration - 1);
 
@@ -542,30 +530,62 @@ export class ScheduleSeeder implements Seeder {
           startDate.setHours(0, 0, 0, 0);
           endDate.setHours(23, 59, 59, 999);
         } else {
-          startDate.setHours(
-            faker.number.int({ min: 0, max: 23 }),
-            faker.number.int({ min: 0, max: 59 }),
-            0,
-            0,
-          );
+          startDate.setHours(faker.number.int({ min: 0, max: 23 }), 0, 0, 0);
           endDate.setHours(
             faker.number.int({ min: startDate.getHours(), max: 23 }),
-            faker.number.int({ min: 0, max: 59 }),
+            59,
             59,
             999,
           );
         }
 
         const title = faker.helpers.arrayElement(this.scheduleTemplates);
+        const category = faker.helpers.arrayElement(categories);
+        const isRecurring = faker.datatype.boolean(0.3);
+        const repeatType = isRecurring
+          ? faker.helpers.arrayElement(['daily', 'weekly', 'monthly', 'yearly'])
+          : 'none';
 
-        const schedule = new Schedule();
-        schedule.userUuid = user.userUuid;
-        schedule.category = faker.helpers.arrayElement(categories);
-        schedule.startDate = startDate;
-        schedule.endDate = endDate;
-        schedule.title = title;
-        schedule.place = faker.helpers.arrayElement(this.locationTemplates);
-        schedule.isAllDay = isAllDay;
+        const schedule: any = {
+          userUuid: faker.string.uuid(),
+          category: category,
+          startDate,
+          endDate,
+          title,
+          place: faker.helpers.arrayElement(this.locationTemplates),
+          isGroupSchedule: faker.datatype.boolean(0.3),
+          isAllDay,
+          repeatType,
+          isRecurring,
+          recurringInterval: isRecurring
+            ? faker.number.int({ min: 1, max: 4 })
+            : null,
+          recurringDaysOfWeek: null,
+          recurringDayOfMonth: null,
+          recurringMonthOfYear: null,
+          repeatEndDate: null,
+        };
+
+        if (isRecurring) {
+          const repeatDuration = faker.number.int({ min: 30, max: 180 });
+          schedule.repeatEndDate = new Date(startDate);
+          schedule.repeatEndDate.setDate(startDate.getDate() + repeatDuration);
+
+          switch (repeatType) {
+            case 'weekly':
+              schedule.recurringDaysOfWeek = [
+                faker.number.int({ min: 0, max: 6 }),
+              ];
+              break;
+            case 'monthly':
+              schedule.recurringDayOfMonth = startDate.getDate();
+              break;
+            case 'yearly':
+              schedule.recurringMonthOfYear = startDate.getMonth() + 1;
+              schedule.recurringDayOfMonth = startDate.getDate();
+              break;
+          }
+        }
 
         if (faker.datatype.boolean(0.2)) {
           schedule.memo = faker.helpers.arrayElement(this.memoTemplates);
@@ -576,18 +596,102 @@ export class ScheduleSeeder implements Seeder {
     }
 
     await dataSource.transaction(async (transactionalEntityManager) => {
-      for (const schedule of schedules) {
+      for (const scheduleData of schedules) {
         try {
-          await transactionalEntityManager.save(Schedule, schedule);
-          console.log(
-            `일정 생성: ${schedule.title} (${schedule.startDate.toISOString()} - ${schedule.endDate.toISOString()})`,
+          const savedSchedule = await transactionalEntityManager.save(
+            Schedule,
+            scheduleData,
           );
+          console.log(
+            `일정 생성: ${savedSchedule.title} (${savedSchedule.startDate.toISOString()} - ${savedSchedule.endDate.toISOString()})`,
+          );
+
+          if (savedSchedule.isRecurring) {
+            await this.createScheduleInstances(
+              transactionalEntityManager,
+              savedSchedule,
+            );
+          }
         } catch (error) {
-          console.error(`일정 생성 중 오류 발생: ${schedule.title}`, error);
+          console.error(`일정 생성 중 오류 발생: ${scheduleData.title}`, error);
         }
       }
     });
 
     console.log(`총 ${schedules.length}개의 일정이 생성되었습니다.`);
+  }
+
+  private async createScheduleInstances(
+    transactionalEntityManager,
+    schedule: Schedule,
+  ): Promise<void> {
+    let currentDate = new Date(schedule.startDate);
+    const endDate = schedule.repeatEndDate;
+    const duration = schedule.endDate.getTime() - schedule.startDate.getTime();
+
+    while (currentDate <= endDate) {
+      if (this.isEventOccurring(schedule, currentDate)) {
+        const instanceEndDate = new Date(currentDate.getTime() + duration);
+        const isException = faker.datatype.boolean(0.1);
+
+        if (isException) {
+          const exceptionMemo = faker.helpers.arrayElement(this.memoTemplates);
+          await transactionalEntityManager.save(ScheduleInstance, {
+            schedule,
+            instanceStartDate: new Date(currentDate),
+            instanceEndDate: instanceEndDate,
+            isException: true,
+            exceptionMemo,
+          });
+        } else {
+          await transactionalEntityManager.save(ScheduleInstance, {
+            schedule,
+            instanceStartDate: new Date(currentDate),
+            instanceEndDate: instanceEndDate,
+          });
+        }
+      }
+
+      currentDate = this.getNextOccurrence(schedule, currentDate);
+    }
+  }
+
+  private isEventOccurring(schedule: Schedule, date: Date): boolean {
+    switch (schedule.repeatType) {
+      case 'daily':
+        return true;
+      case 'weekly':
+        return schedule.recurringDaysOfWeek.includes(date.getDay());
+      case 'monthly':
+        return date.getDate() === schedule.recurringDayOfMonth;
+      case 'yearly':
+        return (
+          date.getMonth() + 1 === schedule.recurringMonthOfYear &&
+          date.getDate() === schedule.recurringDayOfMonth
+        );
+      default:
+        return false;
+    }
+  }
+
+  private getNextOccurrence(schedule: Schedule, currentDate: Date): Date {
+    const nextDate = new Date(currentDate);
+    switch (schedule.repeatType) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + schedule.recurringInterval);
+        break;
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + 7 * schedule.recurringInterval);
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + schedule.recurringInterval);
+        break;
+      case 'yearly':
+        nextDate.setFullYear(
+          nextDate.getFullYear() + schedule.recurringInterval,
+        );
+        break;
+    }
+    return nextDate;
   }
 }

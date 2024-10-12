@@ -11,9 +11,11 @@ import { OCRTranscriptionService } from './OCR-transcription.service';
 import { User } from '@/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { Auth } from '@/entities/auth.entity';
+import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Schedule, User, Auth]),
+    TypeOrmModule.forFeature([Schedule, ScheduleInstance]),
     HttpModule,
     ConfigModule,
     CategoriesModule,

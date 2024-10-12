@@ -11,6 +11,7 @@ import {
 import { Category } from './category.entity';
 import { GroupSchedule } from './group-schedule.entity';
 import { User } from './user.entity';
+import { ScheduleInstance } from './schedule-instance.entity';
 
 @Entity('schedule')
 export class Schedule {
@@ -34,7 +35,7 @@ export class Schedule {
   @Column({ name: 'end_date', type: 'timestamp' })
   endDate: Date;
 
-  @Column({ length: 255, default: '새로운 일정' })
+  @Column({ length: 255, nullable: false, default: '새로운 일정' })
   title?: string;
 
   @Column({ length: 255, default: '' })
@@ -46,6 +47,20 @@ export class Schedule {
   @Column({ name: 'is_all_day', default: false })
   isAllDay?: boolean;
 
+  @Column({ name: 'is_group_schedule', default: false })
+  isGroupSchedule: boolean;
+
+  @Column({
+    name: 'repeat_type',
+    type: 'enum',
+    enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
+    default: 'none',
+  })
+  repeatType: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+  @Column({ name: 'repeat_end_date', type: 'timestamp', nullable: true })
+  repeatEndDate?: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -54,4 +69,26 @@ export class Schedule {
 
   @OneToMany(() => GroupSchedule, (groupSchedule) => groupSchedule.schedule)
   groupSchedules: GroupSchedule[];
+
+  @OneToMany(() => ScheduleInstance, (instance) => instance.schedule)
+  instances: ScheduleInstance[];
+
+  @Column({ name: 'is_recurring', default: false })
+  isRecurring: boolean;
+
+  @Column({ name: 'recurring_interval', type: 'int', nullable: true })
+  recurringInterval?: number;
+
+  @Column({
+    name: 'recurring_days_of_week',
+    type: 'simple-array',
+    nullable: true,
+  })
+  recurringDaysOfWeek?: number[];
+
+  @Column({ name: 'recurring_day_of_month', type: 'int', nullable: true })
+  recurringDayOfMonth?: number;
+
+  @Column({ name: 'recurring_month_of_year', type: 'int', nullable: true })
+  recurringMonthOfYear?: number;
 }

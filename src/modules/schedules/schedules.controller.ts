@@ -9,6 +9,8 @@ import {
   Patch,
   UseInterceptors,
   UploadedFile,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -29,8 +31,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { VoiceScheduleUploadDto } from './dto/voice-schedule-upload.dto';
 import { OCRScheduleUploadDto } from './dto/ocr-schedule-upload.dto';
 import { OCRTranscriptionService } from './OCR-transcription.service';
+import { UpdateRecurringScheduleDto } from './dto/update-recurring-schedule.dto';
+import { CreateRecurringScheduleDto } from './dto/create-recurring-schedule.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Schedules')
+@UseGuards(AuthGuard('jwt'))
 @Controller('schedules')
 export class SchedulesController {
   constructor(
@@ -62,8 +68,12 @@ export class SchedulesController {
     type: ResponseScheduleDto,
   })
   async createSchedule(
+    @Req() req,
     @Body() createScheduleDto: CreateScheduleDto,
   ): Promise<ResponseScheduleDto> {
+    const userUuid = req.user.userUuid;
+    createScheduleDto.userUuid = userUuid;
+    createScheduleDto.categoryId = createScheduleDto.categoryId || 7;
     return await this.schedulesService.create(createScheduleDto);
   }
 
@@ -219,5 +229,77 @@ export class SchedulesController {
     const ocrResult =
       await this.ocrTranscriptionService.extractTextFromNaverOCR(file);
     return await this.schedulesService.processWithGptOCR(ocrResult);
+  }
+
+  @Post('recurring')
+  @ApiOperation({
+    summary: '새 반복 일정 생성',
+    description: '새로운 반복 일정을 생성합니다.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: '반복 일정이 성공적으로 생성됨',
+    type: ResponseScheduleDto,
+  })
+  async createRecurringSchedule(
+    @Req() req,
+    @Body() createRecurringScheduleDto: CreateRecurringScheduleDto,
+  ): Promise<ResponseScheduleDto> {
+    const userUuid = req.user.userUuid;
+    createRecurringScheduleDto.userUuid = userUuid;
+    createRecurringScheduleDto.categoryId =
+      createRecurringScheduleDto.categoryId || 7;
+    const schedule = await this.schedulesService.createRecurringSchedule(
+      createRecurringScheduleDto,
+    );
+    return this.schedulesService.convertToResponseDto(
+      schedule,
+      schedule.category,
+    );
+  }
+
+  @Patch('recurring/:id')
+  @ApiOperation({
+    summary: '반복 일정 업데이트',
+    description: '기존 반복 일정을 업데이트합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '반복 일정이 성공적으로 업데이트됨',
+    type: ResponseScheduleDto,
+  })
+  async updateRecurringSchedule(
+    @Req() req,
+    @Param('id') id: number,
+    @Body() updateRecurringScheduleDto: UpdateRecurringScheduleDto,
+    @Query('updateFuture') updateFuture: boolean,
+  ): Promise<ResponseScheduleDto> {
+    const userUuid = req.user.userUuid;
+    const schedule = await this.schedulesService.updateRecurringSchedule(
+      id,
+      {
+        ...updateRecurringScheduleDto,
+        categoryId: updateRecurringScheduleDto.categoryId || 7,
+      },
+      updateFuture,
+    );
+    return this.schedulesService.convertToResponseDto(
+      schedule,
+      schedule.category,
+    );
+  }
+
+  @Delete('recurring/:id')
+  @ApiOperation({
+    summary: '반복 일정 삭제',
+    description: '지정된 ID의 반복 일정을 삭제합니다.',
+  })
+  @ApiResponse({ status: 204, description: '반복 일정이 성공적으로 삭제됨' })
+  @ApiQuery({ name: 'deleteFuture', required: false, type: Boolean })
+  async deleteRecurringSchedule(
+    @Param('id') id: number,
+    @Query('deleteFuture') deleteFuture: boolean = false,
+  ): Promise<void> {
+    await this.schedulesService.removeRecurring(id, deleteFuture);
   }
 }
