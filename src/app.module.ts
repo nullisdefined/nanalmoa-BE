@@ -14,6 +14,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { PassportModule } from '@nestjs/passport';
 import { ManagerController } from './modules/manager/manager.controller';
 import { ManagerModule } from './modules/manager/manager.module';
+import { InvitationsModule } from './modules/invitations/invitations.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ManagerModule } from './modules/manager/manager.module';
     GroupModule,
     CategoriesModule,
     ManagerModule,
+    InvitationsModule,
   ],
   controllers: [AppController, ManagerController],
   providers: [AppService],
