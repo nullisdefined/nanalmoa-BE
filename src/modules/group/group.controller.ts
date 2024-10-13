@@ -26,6 +26,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 import { GroupInfoResponseDto } from './dto/response-group.dto';
 import { GroupMemberResponseDto } from './dto/response-group-member.dto';
+import { GroupDetailResponseDto } from './dto/response-group-detail.dto';
 
 @ApiTags('Group')
 @Controller('groups')
@@ -205,5 +206,23 @@ export class GroupController {
   ): Promise<RespondToInvitationDto[]> {
     const userUuid = req.user['userUuid'];
     return this.groupService.getReceivedInvitations(userUuid);
+  }
+
+  @Get(':groupId')
+  @ApiOperation({ summary: '상세 그룹 정보 조회' })
+  @ApiParam({ name: 'groupId', description: '조회할 그룹 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '상세 그룹 정보',
+    type: GroupDetailResponseDto,
+  })
+  @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
+  async getGroupDetail(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Req() req: Request,
+  ): Promise<GroupDetailResponseDto> {
+    const userUuid = req.user['userUuid'];
+    return this.groupService.getGroupDetail(groupId, userUuid);
   }
 }

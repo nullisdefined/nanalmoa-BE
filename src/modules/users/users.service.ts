@@ -130,4 +130,12 @@ export class UsersService {
     const count = await query.getCount();
     return count > 0;
   }
+
+  async findOne(userUuid: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { userUuid } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    return user;
+  }
 }

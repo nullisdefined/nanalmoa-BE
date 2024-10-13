@@ -1,11 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-// 그룹원 정보를 반환할 때 사용
+
 export class GroupMemberResponseDto {
   @ApiProperty({
     description: '사용자 UUID',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   userUuid: string;
+
+  @ApiProperty({
+    description: '사용자 이름',
+    example: '홍길동',
+  })
+  name: string;
 
   @ApiProperty({ description: '관리자 여부', example: false })
   isAdmin: boolean;
