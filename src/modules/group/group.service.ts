@@ -19,6 +19,7 @@ import { GroupMemberResponseDto } from './dto/response-group-member.dto';
 import { RemoveGroupMemberDto } from './dto/remove-group-member.dto';
 import { UsersService } from '../users/users.service';
 import { GroupDetailResponseDto } from './dto/response-group-detail.dto';
+import { GroupInvitationDetailDto } from './dto/response-group-invitation-detail.dto';
 
 @Injectable()
 export class GroupService {
@@ -495,6 +496,34 @@ export class GroupService {
       memberCount,
       isAdmin: userGroup.isAdmin,
       members,
+    };
+  }
+
+  async getGroupInvitationDetail(
+    invitationId: number,
+  ): Promise<GroupInvitationDetailDto> {
+    const invitation = await this.groupInvitationRepository.findOne({
+      where: { groupInvitationId: invitationId },
+      relations: ['group'],
+    });
+
+    if (!invitation) {
+      throw new NotFoundException(
+        `초대 ID ${invitationId}를 찾을 수 없습니다.`,
+      );
+    }
+
+    const inviter = await this.usersService.findOne(invitation.inviterUuid);
+    const invitee = await this.usersService.findOne(invitation.inviteeUuid);
+
+    return {
+      inviterUuid: invitation.inviterUuid,
+      inviterName: inviter.name,
+      inviteeUuid: invitation.inviteeUuid,
+      inviteeName: invitee.name,
+      groupName: invitation.group.groupName,
+      groupId: invitation.group.groupId,
+      status: invitation.status,
     };
   }
 }

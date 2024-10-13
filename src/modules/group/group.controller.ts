@@ -27,6 +27,7 @@ import { Request } from 'express';
 import { GroupInfoResponseDto } from './dto/response-group.dto';
 import { GroupMemberResponseDto } from './dto/response-group-member.dto';
 import { GroupDetailResponseDto } from './dto/response-group-detail.dto';
+import { GroupInvitationDetailDto } from './dto/response-group-invitation-detail.dto';
 
 @ApiTags('Group')
 @Controller('groups')
@@ -206,6 +207,21 @@ export class GroupController {
   ): Promise<RespondToInvitationDto[]> {
     const userUuid = req.user['userUuid'];
     return this.groupService.getReceivedInvitations(userUuid);
+  }
+
+  @Get('invitation/:id')
+  @ApiOperation({ summary: '그룹 초대 상세 정보 조회' })
+  @ApiParam({ name: 'id', description: '초대 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '그룹 초대 상세 정보',
+    type: GroupInvitationDetailDto,
+  })
+  @ApiResponse({ status: 404, description: '초대를 찾을 수 없음' })
+  async getGroupInvitationDetail(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<GroupInvitationDetailDto> {
+    return this.groupService.getGroupInvitationDetail(id);
   }
 
   @Get(':groupId')
