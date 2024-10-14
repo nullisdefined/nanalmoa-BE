@@ -73,7 +73,6 @@ export class UsersService {
       return 'name';
     }
   }
-
   async searchUser(keyword: string): Promise<User[]> {
     const searchType = this.determineSearchType(keyword);
     let users: User[] = [];
@@ -94,10 +93,6 @@ export class UsersService {
           where: [{ name: keyword }],
         });
         break;
-    }
-
-    if (users.length === 0) {
-      throw new NotFoundException('검색 결과가 없습니다.');
     }
 
     return users;
