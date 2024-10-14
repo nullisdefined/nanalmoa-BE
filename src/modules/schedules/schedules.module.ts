@@ -12,6 +12,7 @@ import { User } from '@/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { Auth } from '@/entities/auth.entity';
 import { ScheduleInstance } from '@/entities/schedule-instance.entity';
+import { UsersModule } from '../users/users.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Schedule, User, Auth]),
@@ -19,6 +20,7 @@ import { ScheduleInstance } from '@/entities/schedule-instance.entity';
     HttpModule,
     ConfigModule,
     CategoriesModule,
+    UsersModule,
   ],
   controllers: [SchedulesController],
   providers: [
@@ -27,5 +29,6 @@ import { ScheduleInstance } from '@/entities/schedule-instance.entity';
     OCRTranscriptionService,
     UsersService,
   ],
+  exports: [SchedulesService, OCRTranscriptionService],
 })
 export class SchedulesModule {}

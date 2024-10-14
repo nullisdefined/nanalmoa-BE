@@ -254,19 +254,23 @@ export class SchedulesController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('image'))
-  @ApiOperation({ summary: '이미지 파일 업로드 및 일정 추출' })
+  @ApiOperation({ summary: '이미지 파일 업로드 및 복약 일정 추출' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: OCRScheduleUploadDto })
   @ApiResponse({
     status: 200,
-    description: '추출된 일정 정보',
+    description: '추출된 복약 정보 및 생성된 일정',
     type: [CreateScheduleDto],
   })
   async uploadImageScheduleClova(
     @UploadedFile() file: Express.Multer.File,
+    @Req() req,
   ): Promise<CreateScheduleDto[]> {
-    const ocrResult =
-      await this.ocrTranscriptionService.extractTextFromNaverOCR(file);
-    return await this.schedulesService.processWithGptOCR(ocrResult);
+    const userUuid = req.user.userUuid;
+    const schedules = await this.ocrTranscriptionService.processMedicationImage(
+      file,
+      userUuid,
+    );
+    return schedules;
   }
 }

@@ -669,7 +669,7 @@ export class SchedulesService {
   /**
    * GPT 응답을 파싱합니다.
    */
-  private parseGptResponse(response: string): any[] {
+  parseGptResponse(response: string): any[] {
     try {
       return JSON.parse(response);
     } catch (error) {
@@ -710,31 +710,6 @@ export class SchedulesService {
       this.parseGptResponse(gptResponseContent),
       userUuid,
     );
-  }
-
-  /**
-   * OCR 결과를 OpenAI GPT 모델에 넘겨서 처리합니다.
-   */
-  async processWithGptOCR(OCRResult: string): Promise<any> {
-    const gptResponse = await this.openai.chat.completions.create({
-      model: this.configService.get<string>('OPENAI_FINETUNING_MODEL_OCR'),
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an AI assistant that extracts intent, tablets, times, and days information from conversations.',
-        },
-        {
-          role: 'user',
-          content: `${OCRResult}`,
-        },
-      ],
-      max_tokens: 1000,
-      temperature: 0,
-    });
-
-    const gptResponseContent = gptResponse.choices[0].message.content;
-    return this.parseGptResponse(gptResponseContent);
   }
 
   /**
