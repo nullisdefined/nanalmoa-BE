@@ -18,6 +18,8 @@ import { RespondToInvitationDto } from './dto/response-invitation.dto';
 import { GroupMemberResponseDto } from './dto/response-group-member.dto';
 import { RemoveGroupMemberDto } from './dto/remove-group-member.dto';
 import { UsersService } from '../users/users.service';
+import { GroupDetailResponseDto } from './dto/response-group-detail.dto';
+import { GroupInvitationDetailDto } from './dto/response-group-invitation-detail.dto';
 
 @Injectable()
 export class GroupService {
@@ -384,13 +386,20 @@ export class GroupService {
       );
     }
 
-    return userGroups.map((userGroup) => ({
-      userUuid: userGroup.userUuid,
-      isAdmin: userGroup.isAdmin,
-      joinedAt: userGroup.createdAt,
-    }));
-  }
+    const groupMembers: GroupMemberResponseDto[] = await Promise.all(
+      userGroups.map(async (userGroup) => {
+        const user = await this.usersService.findOne(userGroup.userUuid);
+        return {
+          userUuid: userGroup.userUuid,
+          name: user.name,
+          isAdmin: userGroup.isAdmin,
+          joinedAt: userGroup.createdAt,
+        };
+      }),
+    );
 
+    return groupMembers;
+  }
   async removeGroupMember(
     removeGroupMemberDto: RemoveGroupMemberDto,
     adminUuid: string,
@@ -443,5 +452,78 @@ export class GroupService {
       invitation.status = InvitationStatus.REMOVED;
       await this.groupInvitationRepository.save(invitation);
     }
+  }
+  async getGroupDetail(
+    groupId: number,
+    userUuid: string,
+  ): Promise<GroupDetailResponseDto> {
+    const group = await this.groupRepository.findOne({
+      where: { groupId },
+      relations: ['userGroups'],
+    });
+
+    if (!group) {
+      throw new NotFoundException('해당 그룹을 찾을 수 없습니다.');
+    }
+
+    const userGroup = group.userGroups.find((ug) => ug.userUuid === userUuid);
+
+    if (!userGroup) {
+      throw new ForbiddenException('당신은 해당 그룹의 멤버가 아닙니다.');
+    }
+
+    const memberCount = group.userGroups.length;
+
+    const members: GroupMemberResponseDto[] = await Promise.all(
+      group.userGroups.map(async (ug) => {
+        const user = await this.usersService.findOne(ug.userUuid);
+        return {
+          userUuid: ug.userUuid,
+          name: user.name,
+          isAdmin: ug.isAdmin,
+          joinedAt: ug.createdAt,
+        };
+      }),
+    );
+
+    // 가입 일시순으로 정렬
+    members.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
+
+    return {
+      groupId: group.groupId,
+      groupName: group.groupName,
+      createdAt: group.createdAt,
+      memberCount,
+      isAdmin: userGroup.isAdmin,
+      members,
+    };
+  }
+
+  async getGroupInvitationDetail(
+    invitationId: number,
+  ): Promise<GroupInvitationDetailDto> {
+    const invitation = await this.groupInvitationRepository.findOne({
+      where: { groupInvitationId: invitationId },
+      relations: ['group'],
+    });
+
+    if (!invitation) {
+      throw new NotFoundException(
+        `초대 ID ${invitationId}를 찾을 수 없습니다.`,
+      );
+    }
+
+    const inviter = await this.usersService.findOne(invitation.inviterUuid);
+    const invitee = await this.usersService.findOne(invitation.inviteeUuid);
+
+    return {
+      inviterUuid: invitation.inviterUuid,
+      inviterName: inviter.name,
+      inviteeUuid: invitation.inviteeUuid,
+      inviteeName: invitee.name,
+      groupName: invitation.group.groupName,
+      groupId: invitation.group.groupId,
+      status: invitation.status,
+    };
   }
 }

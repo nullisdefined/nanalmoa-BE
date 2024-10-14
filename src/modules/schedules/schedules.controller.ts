@@ -19,6 +19,7 @@ import {
   ApiQuery,
   ApiConsumes,
   ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { SchedulesService } from './schedules.service';
@@ -35,6 +36,7 @@ import { UpdateScheduleDto } from './dto/update-schedule.dto';
 @ApiTags('Schedules')
 @UseGuards(AuthGuard('jwt'))
 @Controller('schedules')
+@ApiBearerAuth('Access-Token')
 export class SchedulesController {
   constructor(
     private readonly schedulesService: SchedulesService,
