@@ -1,132 +1,107 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Schedule } from 'src/entities/schedule.entity';
+import { Type } from 'class-transformer';
 import { Category } from '@/entities/category.entity';
-import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 export class ResponseScheduleDto {
   @ApiProperty({ description: '일정 ID', example: 1 })
   scheduleId: number;
 
-  @ApiProperty({
-    description: '특정 사용자의 UUID',
-    example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-  })
+  @ApiProperty({ description: '사용자 UUID', example: 'abc123-def456-ghi789' })
   userUuid: string;
 
   @ApiProperty({
-    description: '카테고리',
-    type: () => Category,
-    example: {
-      categoryId: 1,
-      categoryName: '병원',
-    },
+    description: '일정 시작 날짜 및 시간',
+    example: '2023-10-15T09:00:00Z',
   })
-  category: Category;
-
-  @ApiProperty({
-    description: '일정 시작 날짜',
-    example: '2024-09-21T09:00:00Z',
-  })
+  @Type(() => Date)
   startDate: Date;
 
   @ApiProperty({
-    description: '일정 종료 날짜',
-    example: '2024-09-21T18:00:00Z',
+    description: '일정 종료 날짜 및 시간',
+    example: '2023-10-15T10:00:00Z',
   })
+  @Type(() => Date)
   endDate: Date;
 
   @ApiProperty({
     description: '일정 제목',
-    example: '마을 잔치',
+    example: '팀 미팅',
   })
   title: string;
 
-  @ApiProperty({ description: '장소', example: '노인정' })
-  place: string;
-
   @ApiProperty({
-    description: '메모',
-    example: '이장님 몰래하는거라 조심해서 해야한다.',
+    description: '일정 장소',
+    example: '회의실 A',
   })
-  memo: string;
+  place?: string;
 
   @ApiProperty({
-    description: '그룹 일정 여부',
+    description: '일정에 대한 메모',
+    example: '프로젝트 진행 상황 논의',
+  })
+  memo?: string;
+
+  @ApiProperty({
+    description: '종일 일정 여부',
     example: false,
   })
-  isGroupSchedule: boolean;
-
-  @ApiProperty({ description: '종일 옵션', example: false })
   isAllDay: boolean;
+
+  @ApiProperty({
+    description: '일정 카테고리',
+    type: () => Category,
+  })
+  category: Category;
+
+  @ApiProperty({ description: '반복 일정 여부', example: true })
+  isRecurring: boolean;
 
   @ApiProperty({
     description: '반복 유형',
     enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
-    example: 'none',
+    example: 'weekly',
   })
-  repeatType: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  repeatType?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
   @ApiProperty({
     description: '반복 종료 날짜',
-    example: '2024-12-31T23:59:59Z',
-    required: false,
+    example: '2023-12-31T23:59:59Z',
   })
+  @Type(() => Date)
   repeatEndDate?: Date;
 
-  @ApiProperty({ description: '반복 일정 여부', example: false })
-  isRecurring: boolean;
-
-  @ApiProperty({ description: '반복 간격', example: 1, required: false })
+  @ApiProperty({
+    description: '반복 간격 (일/주/월/년 단위)',
+    example: 1,
+  })
   recurringInterval?: number;
 
-  @ApiProperty({ description: '반복 요일', type: [Number], required: false })
+  @ApiProperty({
+    description:
+      '주간 반복 시 반복할 요일 (0: 일요일, 1: 월요일, ..., 6: 토요일)',
+    example: [1, 3, 5],
+  })
   recurringDaysOfWeek?: number[];
 
-  @ApiProperty({ description: '반복 일', example: 1, required: false })
+  @ApiProperty({
+    description: '월간 반복 시 반복할 날짜',
+    example: 15,
+  })
   recurringDayOfMonth?: number;
 
-  @ApiProperty({ description: '반복 월', example: 1, required: false })
+  @ApiProperty({
+    description: '연간 반복 시 반복할 월 (1-12)',
+    example: 3,
+  })
   recurringMonthOfYear?: number;
 
-  @ApiProperty({ description: '예외 일정 여부', required: false })
-  isException?: boolean;
-
   @ApiProperty({
-    description: '일정 인스턴스',
-    type: [ScheduleInstance],
-    required: false,
+    description: '예외 일정 여부',
+    example: false,
   })
-  instances?: ScheduleInstance[];
+  isException: boolean;
 
-  constructor(
-    schedule: Schedule,
-    category: Category,
-    instances?: ScheduleInstance[],
-    isException: boolean = false,
-  ) {
-    this.scheduleId = schedule.scheduleId;
-    this.userUuid = schedule.userUuid;
-    this.category = category;
-    this.startDate = schedule.startDate;
-    this.endDate = schedule.endDate;
-    this.title = schedule.title || '새로운 일정';
-    this.place = schedule.place;
-    this.memo = schedule.memo;
-    this.isGroupSchedule =
-      schedule.isGroupSchedule ||
-      (schedule.groupSchedules && schedule.groupSchedules.length > 0);
-    this.isAllDay = schedule.isAllDay;
-    this.repeatType = schedule.repeatType;
-    this.repeatEndDate = schedule.repeatEndDate;
-    this.isRecurring = schedule.isRecurring;
-    this.recurringInterval = schedule.recurringInterval;
-    this.recurringDaysOfWeek = schedule.recurringDaysOfWeek;
-    this.recurringDayOfMonth = schedule.recurringDayOfMonth;
-    this.recurringMonthOfYear = schedule.recurringMonthOfYear;
-    this.isException = isException;
-
-    if (instances && instances.length > 0) {
-      this.instances = instances;
-    }
+  constructor(partial: Partial<ResponseScheduleDto>) {
+    Object.assign(this, partial);
   }
 }

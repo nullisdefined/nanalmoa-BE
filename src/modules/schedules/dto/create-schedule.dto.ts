@@ -1,120 +1,140 @@
 import {
   IsNotEmpty,
-  IsNumber,
   IsDate,
   IsString,
   IsBoolean,
   IsOptional,
-  IsUUID,
   IsEnum,
+  IsNumber,
+  IsArray,
+  ValidateIf,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class CreateScheduleDto {
   @ApiProperty({
-    description: '특정 사용자의 UUID',
-    example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-  })
-  userUuid: string;
-
-  @ApiProperty({
-    description: '카테고리 ID',
-    example: 2,
-    default: 7,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Transform(({ value }) => value || 7) // 기본값 설정
-  categoryId?: number;
-
-  @ApiProperty({
-    description: '일정 시작 날짜',
-    example: '2024-09-21T09:00:00Z',
+    description: '일정 시작 날짜 및 시간',
+    example: '2023-10-15T09:00:00Z',
   })
   @IsNotEmpty()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   startDate: Date;
 
   @ApiProperty({
-    description: '일정 종료 날짜',
-    example: '2024-09-21T18:00:00Z',
+    description: '일정 종료 날짜 및 시간',
+    example: '2023-10-15T10:00:00Z',
   })
   @IsNotEmpty()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   endDate: Date;
 
   @ApiProperty({
     description: '일정 제목',
-    example: '마을 잔치',
+    example: '팀 미팅',
     default: '새로운 일정',
-    required: false,
   })
-  @IsOptional()
   @IsString()
-  @Transform(({ value }) => value || '새로운 일정') // 기본값 설정
+  @IsOptional()
   title?: string;
 
   @ApiProperty({
-    description: '장소',
-    example: '노인정',
-    default: '',
+    description: '일정 장소',
+    example: '회의실 A',
     required: false,
   })
-  @IsOptional()
   @IsString()
-  @Transform(({ value }) => value || '') // 기본값 설정
+  @IsOptional()
   place?: string;
 
   @ApiProperty({
-    description: '메모',
+    description: '일정에 대한 메모',
+    example: '프로젝트 진행 상황 논의',
     required: false,
-    example: '이장님 몰래하는거라 조심해서 해야한다.',
-    default: '',
   })
-  @IsOptional()
   @IsString()
-  @Transform(({ value }) => value || '') // 기본값 설정
+  @IsOptional()
   memo?: string;
 
   @ApiProperty({
-    description: '그룹 일정 여부',
+    description: '종일 일정 여부',
+    example: false,
     default: false,
-    required: false,
   })
-  @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => (value !== undefined ? value : false)) // 기본값 설정
-  isGroupSchedule?: boolean;
-
-  @ApiProperty({ description: '종일 옵션', default: false, required: false })
   @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => (value !== undefined ? value : false)) // 기본값 설정
   isAllDay?: boolean;
+
+  @ApiProperty({
+    description: '일정 카테고리 ID',
+    example: 1,
+    default: 7,
+  })
+  @IsNumber()
+  @IsOptional()
+  categoryId?: number;
+
+  @ApiProperty({ description: '반복 일정 여부', example: true })
+  @IsBoolean()
+  isRecurring: boolean;
 
   @ApiProperty({
     description: '반복 유형',
     enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
+    example: 'weekly',
     default: 'none',
-    required: false,
   })
-  @IsOptional()
   @IsEnum(['none', 'daily', 'weekly', 'monthly', 'yearly'])
-  @Transform(({ value }) => value ?? 'none')
+  @IsOptional()
   repeatType?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
   @ApiProperty({
     description: '반복 종료 날짜',
+    example: '2023-12-31T23:59:59Z',
     required: false,
-    example: '2024-12-31T23:59:59Z',
   })
-  @IsOptional()
-  @IsDate()
+  @ValidateIf((o) => o.isRecurring === true)
+  @IsNotEmpty({ message: '반복 일정의 경우 반복 종료 날짜는 필수입니다.' })
   @Type(() => Date)
+  @IsDate()
   repeatEndDate?: Date;
+
+  @ApiProperty({
+    description: '반복 간격 (일/주/월/년 단위)',
+    example: 1,
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  recurringInterval?: number;
+
+  @ApiProperty({
+    description:
+      '주간 반복 시 반복할 요일 (0: 일요일, 1: 월요일, ..., 6: 토요일)',
+    example: [1, 3, 5],
+    required: false,
+  })
+  @IsArray()
+  @IsOptional()
+  recurringDaysOfWeek?: number[];
+
+  @ApiProperty({
+    description: '월간 반복 시 반복할 날짜',
+    example: 15,
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  recurringDayOfMonth?: number;
+
+  @ApiProperty({
+    description: '연간 반복 시 반복할 월 (1-12)',
+    example: 3,
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  recurringMonthOfYear?: number;
 }

@@ -79,12 +79,12 @@ export class Schedule {
   @Column({ name: 'recurring_interval', type: 'int', nullable: true })
   recurringInterval?: number;
 
-  @Column({
-    name: 'recurring_days_of_week',
-    type: 'simple-array',
+  @Column('int', {
+    array: true,
     nullable: true,
+    name: 'recurring_days_of_week',
   })
-  recurringDaysOfWeek?: number[];
+  recurringDaysOfWeek: number[];
 
   @Column({ name: 'recurring_day_of_month', type: 'int', nullable: true })
   recurringDayOfMonth?: number;
