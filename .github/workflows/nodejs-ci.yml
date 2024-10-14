@@ -43,4 +43,4 @@ jobs:
             git pull origin main
             npm ci
             npm run build
-            pm2 restart nanalmoa
+            pm2 restart nanalmoa 
