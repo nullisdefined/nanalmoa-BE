@@ -72,7 +72,15 @@ export class ManagerService {
     if (!invitation) {
       throw new NotFoundException(`ID가 ${id}인 초대장을 찾을 수 없습니다.`);
     }
-    return invitation;
+
+    const manager = await this.usersService.findOne(invitation.managerUuid);
+    const subordinate = await this.usersService.findOne(invitation.managerUuid);
+
+    return {
+      ...invitation,
+      managerName: manager.name,
+      subordinateName: subordinate.name,
+    };
   }
 
   async createInvitation(
@@ -112,7 +120,15 @@ export class ManagerService {
         status: InvitationStatus.PENDING,
       });
 
-      return await this.managerInvitationRepository.save(invitation);
+      const manager = this.usersService.findOne(managerUuid);
+      const subordinate = this.usersService.findOne(subordinateUuid);
+      await this.managerInvitationRepository.save(invitation);
+
+      return {
+        ...invitation,
+        managerName: (await manager).name,
+        subordinateName: (await subordinate).name,
+      };
     } catch (error) {
       this.logger.error(`초대장 생성 실패: ${error.message}`, error.stack);
       throw new InternalServerErrorException(
@@ -227,7 +243,7 @@ export class ManagerService {
 
   async getInvitationSend(
     getInvitationSendDto: GetInvitationSendDto,
-  ): Promise<ManagerInvitation[]> {
+  ): Promise<InvitationResponseDto[]> {
     try {
       const invitations = await this.managerInvitationRepository.find({
         where: { managerUuid: getInvitationSendDto.managerUuid },
@@ -235,7 +251,22 @@ export class ManagerService {
       this.logger.log(
         `관리자 ${getInvitationSendDto.managerUuid}가 보낸 ${invitations.length}개의 초대장을 조회했습니다.`,
       );
-      return invitations;
+      const invitationResponses = await Promise.all(
+        invitations.map(async (invitation) => {
+          const manager = await this.usersService.findOne(
+            invitation.managerUuid,
+          );
+          const subordinate = await this.usersService.findOne(
+            invitation.subordinateUuid,
+          );
+          return {
+            ...invitation,
+            managerName: manager.name,
+            subordinateName: subordinate.name,
+          };
+        }),
+      );
+      return invitationResponses;
     } catch (error) {
       this.logger.error(`보낸 초대장 조회 실패: ${error.message}`, error.stack);
       throw new InternalServerErrorException(
@@ -246,15 +277,31 @@ export class ManagerService {
 
   async getInvitationReceived(
     getInvitationReceivedDto: GetInvitationReceivedDto,
-  ): Promise<ManagerInvitation[]> {
+  ): Promise<InvitationResponseDto[]> {
     try {
       const invitations = await this.managerInvitationRepository.find({
         where: { subordinateUuid: getInvitationReceivedDto.subordinateUuid },
       });
+      const invitationResponses = await Promise.all(
+        invitations.map(async (invitation) => {
+          const manager = await this.usersService.findOne(
+            invitation.managerUuid,
+          );
+          const subordinate = await this.usersService.findOne(
+            invitation.subordinateUuid,
+          );
+          return {
+            ...invitation,
+            managerName: manager.name,
+            subordinateName: subordinate.name,
+          };
+        }),
+      );
+
       this.logger.log(
         `부하 ${getInvitationReceivedDto.subordinateUuid}가 받은 ${invitations.length}개의 초대장을 조회했습니다.`,
       );
-      return invitations;
+      return invitationResponses;
     } catch (error) {
       this.logger.error(`받은 초대장 조회 실패: ${error.message}`, error.stack);
       throw new InternalServerErrorException(
@@ -284,7 +331,15 @@ export class ManagerService {
       this.logger.log(
         `관리자 ${createManagerSubordinateDto.managerUuid}와 피관리자 ${createManagerSubordinateDto.subordinateUuid} 간의 초대장을 조회했습니다.`,
       );
-      return invitation;
+
+      const manager = this.usersService.findOne(invitation.managerUuid);
+      const subordinate = this.usersService.findOne(invitation.subordinateUuid);
+
+      return {
+        ...invitation,
+        managerName: (await manager).name,
+        subordinateName: (await subordinate).name,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
