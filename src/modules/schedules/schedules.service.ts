@@ -295,6 +295,12 @@ export class SchedulesService {
     const targetDate = new Date(instanceDate);
 
     if (schedule.isRecurring) {
+      if (schedule.repeatEndDate && schedule.repeatEndDate < targetDate) {
+        throw new BadRequestException(
+          '삭제하려는 날짜가 반복 일정의 종료일보다 늦습니다.',
+        );
+      }
+
       if (deleteType === 'future') {
         await this.deleteFutureInstances(schedule, targetDate);
       } else {
@@ -449,7 +455,7 @@ export class SchedulesService {
 
     for (const schedule of schedules) {
       if (schedule.repeatEndDate && schedule.repeatEndDate < startDate) {
-        console.log('종료일이 시작일보다 이전인 일정');
+        // console.log('종료일이 시작일보다 이전인 일정');
         continue;
       }
 
