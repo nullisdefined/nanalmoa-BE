@@ -80,18 +80,6 @@ export class UsersController {
     schema: SearchUserResponseSchema,
     isArray: true,
   })
-  @ApiResponse({
-    status: 404,
-    description: '사용자를 찾을 수 없음',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: { type: 'number', example: 404 },
-        message: { type: 'string', example: '사용자를 찾을 수 없습니다.' },
-        error: { type: 'string', example: 'Not Found' },
-      },
-    },
-  })
   async searchUser(@Body('keyword') keyword: string): Promise<User[]> {
     return this.usersService.searchUser(keyword);
   }

@@ -138,6 +138,12 @@ export class SchedulesController {
   @Delete(':id')
   @ApiOperation({ summary: '일정 삭제' })
   @ApiQuery({
+    name: 'userUuid',
+    required: false,
+    type: String,
+    description: '사용자의 UUID',
+  })
+  @ApiQuery({
     name: 'instanceDate',
     required: true,
     type: String,
@@ -152,20 +158,65 @@ export class SchedulesController {
   async deleteSchedule(
     @Req() req,
     @Param('id') id: number,
+    @Query('userUuid') queryUserUuid: string,
     @Query('instanceDate') instanceDate: string,
-    @Query('deleteFuture') deleteFuture: boolean,
-  ): Promise<void> {
-    const userUuid = req.user.userUuid;
+    @Query('deleteType') deleteType: 'single' | 'future' = 'single',
+  ): Promise<{ message: string }> {
+    const userUuid = queryUserUuid || req.user.userUuid;
     await this.schedulesService.deleteSchedule(
       userUuid,
       id,
       instanceDate,
-      deleteFuture,
+      deleteType,
     );
+    return { message: '일정이 성공적으로 삭제되었습니다.' };
+  }
+
+  @Get('day')
+  @ApiOperation({ summary: '특정 날의 일정 조회' })
+  @ApiQuery({
+    name: 'userUuid',
+    required: false,
+    type: String,
+    description: '사용자의 UUID',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    type: String,
+    description: '조회할 날짜 (YYYY-MM-DD)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '일정 조회 성공',
+    type: [ResponseScheduleDto],
+  })
+  async getSchedulesByDate(
+    @Req() req,
+    @Query('date') date: string,
+    @Query('userUuid') queryUserUuid?: string,
+  ): Promise<ResponseScheduleDto[]> {
+    const userUuid = queryUserUuid || req.user.userUuid;
+    return this.schedulesService.findByDate(userUuid, {
+      userUuid,
+      date: new Date(date),
+    });
   }
 
   @Get('week')
   @ApiOperation({ summary: '특정 주의 일정 조회' })
+  @ApiQuery({
+    name: 'userUuid',
+    required: false,
+    type: String,
+    description: '사용자의 UUID',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    type: String,
+    description: '조회할 주 날짜 (YYYY-MM-DD)',
+  })
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',
@@ -181,6 +232,24 @@ export class SchedulesController {
 
   @Get('month')
   @ApiOperation({ summary: '특정 월의 일정 조회' })
+  @ApiQuery({
+    name: 'userUuid',
+    required: false,
+    type: String,
+    description: '사용자의 UUID',
+  })
+  @ApiQuery({
+    name: 'year',
+    required: true,
+    type: Number,
+    description: '조회할 연도',
+  })
+  @ApiQuery({
+    name: 'month',
+    required: true,
+    type: Number,
+    description: '조회할 월 (1-12)',
+  })
   @ApiResponse({
     status: 200,
     description: '일정 조회 성공',

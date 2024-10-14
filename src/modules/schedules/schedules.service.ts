@@ -5,7 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Between,
+  LessThanOrEqual,
+  MoreThan,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { Schedule } from '../../entities/schedule.entity';
 import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 import { Category } from '@/entities/category.entity';
@@ -127,6 +133,8 @@ export class SchedulesService {
     const startDate = new Date(date.setDate(diff));
     const endDate = new Date(date.setDate(diff + 6));
     endDate.setUTCHours(23, 59, 59, 999);
+    console.log('startDate', startDate);
+    console.log('endDate', endDate);
     return this.getSchedulesInRange(userUuid, startDate, endDate);
   }
 
@@ -174,10 +182,30 @@ export class SchedulesService {
       createScheduleDto.categoryId ?? 7,
     );
 
-    if (createScheduleDto.isRecurring && !createScheduleDto.repeatEndDate) {
-      throw new BadRequestException(
-        '반복 일정은 반드시 종료일(repeatEndDate)을 지정해야 합니다.',
-      );
+    const startDate = new Date(createScheduleDto.startDate);
+    const endDate = new Date(createScheduleDto.endDate);
+
+    // 종료일이 시작일보다 이전인 경우 에러
+    if (endDate <= startDate) {
+      throw new BadRequestException('종료일은 시작일보다 이후여야 합니다.');
+    }
+
+    // 반복 일정에 대한 유효성 검사
+    if (createScheduleDto.repeatType !== 'none') {
+      if (!createScheduleDto.repeatEndDate) {
+        throw new BadRequestException(
+          '반복 일정은 반드시 종료일(repeatEndDate)을 지정해야 합니다.',
+        );
+      }
+
+      const repeatEndDate = new Date(createScheduleDto.repeatEndDate);
+
+      // repeatEndDate가 endDate보다 이전인 경우 에러
+      if (repeatEndDate <= endDate) {
+        throw new BadRequestException(
+          '반복 일정의 종료일은 일정의 종료일보다 이후여야 합니다.',
+        );
+      }
     }
 
     const newSchedule = this.schedulesRepository.create({
@@ -251,7 +279,7 @@ export class SchedulesService {
     userUuid: string,
     scheduleId: number,
     instanceDate: string,
-    deleteFuture: boolean = false,
+    deleteType: 'single' | 'future' = 'single',
   ): Promise<void> {
     const schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
@@ -263,96 +291,99 @@ export class SchedulesService {
         `ID가 ${scheduleId}인 일정을 찾을 수 없습니다.`,
       );
     }
+
     const targetDate = new Date(instanceDate);
 
     if (schedule.isRecurring) {
-      if (deleteFuture) {
-        // 해당 일정 포함 이후 모두 삭제
-        await this.scheduleInstanceRepository.delete({
-          schedule: { scheduleId: schedule.scheduleId },
-          instanceStartDate: MoreThanOrEqual(targetDate),
-        });
-
-        // 원본 일정의 종료일 수정
-        schedule.repeatEndDate = new Date(targetDate);
-        schedule.repeatEndDate.setDate(schedule.repeatEndDate.getDate() - 1);
-        await this.schedulesRepository.save(schedule);
+      if (deleteType === 'future') {
+        await this.deleteFutureInstances(schedule, targetDate);
       } else {
-        // 특정 일정만 삭제 (예외 처리)
-        const instance = await this.scheduleInstanceRepository.findOne({
-          where: {
-            schedule: { scheduleId: schedule.scheduleId },
-            instanceStartDate: targetDate,
-          },
-        });
-
-        if (instance) {
-          instance.isException = true;
-          await this.scheduleInstanceRepository.save(instance);
-        } else {
-          // 존재하지 않는 인스턴스라면 새로 생성하고 예외로 표시
-          const newException = this.scheduleInstanceRepository.create({
-            schedule: schedule,
-            instanceStartDate: targetDate,
-            instanceEndDate: new Date(
-              targetDate.getTime() +
-                (schedule.endDate.getTime() - schedule.startDate.getTime()),
-            ),
-            isException: true,
-          });
-          await this.scheduleInstanceRepository.save(newException);
-        }
+        await this.deleteSingleInstance(schedule, targetDate);
       }
     } else {
       // 반복되지 않는 일정 삭제
       await this.schedulesRepository.remove(schedule);
     }
   }
+  /**
+   * 특정 날짜 이후의 반복 일정을 삭제합니다.
+   */
+  private async deleteFutureInstances(
+    schedule: Schedule,
+    targetDate: Date,
+  ): Promise<Date> {
+    // 원본 일정의 종료일 수정
+    const originalEndDate = schedule.repeatEndDate;
+    schedule.repeatEndDate = new Date(targetDate);
+    schedule.repeatEndDate.setDate(schedule.repeatEndDate.getDate() - 1);
+    schedule.repeatEndDate.setHours(23, 59, 59, 999);
+    await this.schedulesRepository.save(schedule);
 
-  private createNewScheduleFromDate(
-    originalSchedule: Schedule,
-    startFromDate: Date,
-  ): Schedule {
-    const newSchedule = new Schedule();
-    Object.assign(newSchedule, originalSchedule);
-    newSchedule.scheduleId = undefined; // 새로운 ID 할당을 위해
+    // 수정된 데이터가 있다면 인스턴스 삭제
+    await this.scheduleInstanceRepository.delete({
+      schedule: { scheduleId: schedule.scheduleId },
+      instanceStartDate: MoreThan(schedule.repeatEndDate),
+    });
 
-    // 반복 유형에 따라 새 시작 날짜 설정
-    switch (originalSchedule.repeatType) {
-      case 'daily':
-        newSchedule.startDate = new Date(startFromDate);
-        newSchedule.startDate.setDate(newSchedule.startDate.getDate() + 1);
-        break;
-      case 'weekly':
-        newSchedule.startDate = this.adjustStartDateForWeekly(
-          originalSchedule,
-          startFromDate,
-        );
-        break;
-      case 'monthly':
-        newSchedule.startDate = this.adjustStartDateForMonthly(
-          originalSchedule,
-          startFromDate,
-        );
-        break;
-      case 'yearly':
-        newSchedule.startDate = this.adjustStartDateForYearly(
-          originalSchedule,
-          startFromDate,
-        );
-        break;
-      default:
-        throw new BadRequestException(
-          `Invalid repeat type: ${originalSchedule.repeatType}`,
-        );
+    return originalEndDate;
+  }
+
+  /**
+   * 특정 날짜의 반복 일정 삭제
+   */
+  private async deleteSingleInstance(
+    schedule: Schedule,
+    targetDate: Date,
+  ): Promise<void> {
+    // deleteFutureInstances를 이용해 원본 일정 수정
+    const originalEndDate = await this.deleteFutureInstances(
+      schedule,
+      targetDate,
+    );
+
+    // 새로운 원본 일정 생성
+    const newSchedule = { ...schedule };
+    newSchedule.scheduleId = undefined; // 새로운 ID 생성을 위해 undefined 설정
+    newSchedule.startDate = this.getNextOccurrenceDate(schedule, targetDate);
+    newSchedule.endDate = new Date(
+      newSchedule.startDate.getTime() +
+        (schedule.endDate.getTime() - schedule.startDate.getTime()),
+    );
+    newSchedule.repeatEndDate = originalEndDate;
+
+    // 새로운 일정 저장
+    await this.schedulesRepository.save(newSchedule);
+  }
+
+  /**
+   * 삭제된 날짜 이후의 인스턴스들의 날짜를 조정합니다.
+   */
+  private async adjustFutureInstanceDates(
+    scheduleId: number,
+    targetDate: Date,
+  ): Promise<void> {
+    const futureInstances = await this.scheduleInstanceRepository.find({
+      where: {
+        schedule: { scheduleId },
+        instanceStartDate: MoreThan(targetDate),
+      },
+      order: { instanceStartDate: 'ASC' },
+    });
+
+    for (const instance of futureInstances) {
+      const newStartDate = this.getNextOccurrenceDate(
+        instance.schedule,
+        instance.instanceStartDate,
+      );
+      const duration =
+        instance.instanceEndDate.getTime() -
+        instance.instanceStartDate.getTime();
+
+      instance.instanceStartDate = newStartDate;
+      instance.instanceEndDate = new Date(newStartDate.getTime() + duration);
+
+      await this.scheduleInstanceRepository.save(instance);
     }
-
-    // 종료 날짜 조정
-    const duration =
-      originalSchedule.endDate.getTime() - originalSchedule.startDate.getTime();
-    newSchedule.endDate = new Date(newSchedule.startDate.getTime() + duration);
-
-    return newSchedule;
   }
 
   // 헬퍼 메서드
@@ -418,12 +449,11 @@ export class SchedulesService {
 
     for (const schedule of schedules) {
       if (schedule.repeatEndDate && schedule.repeatEndDate < startDate) {
+        console.log('종료일이 시작일보다 이전인 일정');
         continue;
       }
 
-      let currentDate = new Date(
-        Math.max(schedule.startDate.getTime(), startDate.getTime()),
-      );
+      let currentDate = new Date(schedule.startDate);
       const scheduleEndDate = schedule.repeatEndDate || endDate;
 
       while (currentDate <= scheduleEndDate && currentDate <= endDate) {
