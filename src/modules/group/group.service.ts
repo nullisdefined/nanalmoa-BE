@@ -582,11 +582,11 @@ export class GroupService {
       .getMany();
 
     return users.map((user) => ({
-      uuid: user.userUuid,
+      userUuid: user.userUuid,
       name: user.name,
       email: user.email,
       phoneNumber: user.phoneNumber,
-      profileImageUrl: user.profileImage,
+      profileImage: user.profileImage,
       isAdmin: userGroups.find((ug) => ug.userUuid === user.userUuid).isAdmin,
     }));
   }
