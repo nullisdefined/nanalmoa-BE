@@ -13,10 +13,9 @@ export class UpdateUserDto {
   @IsString()
   @Length(1, 20)
   name?: string;
-
   @ApiProperty({ required: false })
   @IsOptional()
-  @Matches(/^01[016789]\d{7,8}$/, {
+  @Matches(/^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/, {
     message: '올바른 전화번호 형식이 아닙니다.',
   })
   phoneNumber?: string;
