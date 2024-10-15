@@ -299,14 +299,6 @@ export class AuthController {
     }
   }
 
-  @Post('logout')
-  @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: '로그아웃' })
-  @ApiResponse({ status: 200, description: '로그아웃 성공' })
-  async logout(@Req() req) {
-    // 로그아웃 로직
-  }
-
   @Post('email/send')
   @ApiOperation({ summary: '이메일 인증 코드 전송' })
   @ApiBody({
