@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '@/entities/category.entity';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
@@ -17,6 +17,8 @@ import { ConfigService } from '@nestjs/config';
 import { VoiceTranscriptionService } from './voice-transcription.service';
 import { UsersService } from '../users/users.service';
 import OpenAI from 'openai';
+import { GroupService } from '../group/group.service';
+import { GroupSchedule } from '@/entities/group-schedule.entity';
 
 @Injectable()
 export class SchedulesService {
@@ -31,6 +33,9 @@ export class SchedulesService {
     private readonly configService: ConfigService,
     private readonly voiceTranscriptionService: VoiceTranscriptionService,
     private readonly usersService: UsersService,
+    @InjectRepository(GroupSchedule)
+    private groupScheduleRepository: Repository<GroupSchedule>,
+    private groupService: GroupService,
   ) {
     const openaiApiKey = this.configService.get<string>('OPENAI_API_KEY');
     this.openai = new OpenAI({ apiKey: openaiApiKey });
@@ -42,31 +47,9 @@ export class SchedulesService {
    * 사용자의 모든 일정을 조회합니다.
    */
   async findAllByUserUuid(userUuid: string): Promise<ResponseScheduleDto[]> {
-    await this.validateUser(userUuid);
-    const currentDate = new Date();
-    const pastDate = new Date(currentDate);
-    pastDate.setFullYear(pastDate.getFullYear() - 1);
-    const futureDate = new Date(currentDate);
-    futureDate.setFullYear(futureDate.getFullYear() + 1);
-    const [regularSchedules, recurringSchedules] = await Promise.all([
-      this.schedulesRepository.find({
-        where: {
-          userUuid,
-          isRecurring: false,
-          startDate: Between(pastDate, futureDate),
-        },
-        relations: ['category'],
-      }),
-      this.findRecurringSchedules(userUuid),
-    ]);
-    const expandedRecurringSchedules = this.expandRecurringSchedules(
-      recurringSchedules,
-      pastDate,
-      futureDate,
-    );
-    const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
-    allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-    return allSchedules.map((schedule) => this.convertToResponseDto(schedule));
+    const startDate = new Date(Date.UTC(2000, 0, 1));
+    const endDate = new Date(Date.UTC(2100, 11, 31, 23, 59, 59, 999));
+    return this.getSchedulesInRange(userUuid, startDate, endDate);
   }
 
   /**
@@ -91,7 +74,11 @@ export class SchedulesService {
     const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
     allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
-    return allSchedules.map((schedule) => this.convertToResponseDto(schedule));
+    const convertedSchedules = await Promise.all(
+      allSchedules.map((schedule) => this.convertToResponseDto(schedule)),
+    );
+
+    return convertedSchedules;
   }
 
   /**
@@ -226,6 +213,12 @@ export class SchedulesService {
     }
 
     const savedSchedule = await this.schedulesRepository.save(newSchedule);
+    if (createScheduleDto.groupInfo && createScheduleDto.groupInfo.length > 0) {
+      await this.groupService.linkScheduleToGroupsAndUsers(
+        savedSchedule,
+        createScheduleDto.groupInfo,
+      );
+    }
 
     return this.convertToResponseDto(savedSchedule);
   }
@@ -510,6 +503,13 @@ export class SchedulesService {
       );
     }
 
+    // const groupSchedule = await this.groupScheduleRepository.findOne({
+    //   where: { schedule: { scheduleId }, user: { userUuid } },
+    // });
+
+    // const isGroupSchedule = !!groupSchedule;
+    // const isCreator = schedule.userUuid === userUuid;
+
     const targetDate = new Date(instanceDate);
 
     if (schedule.isRecurring) {
@@ -717,8 +717,34 @@ export class SchedulesService {
     }
   }
 
-  private convertToResponseDto(schedule: Schedule): ResponseScheduleDto {
-    return {
+  private async convertToResponseDto(
+    schedule: Schedule,
+  ): Promise<ResponseScheduleDto> {
+    const groupSchedules = await this.groupScheduleRepository.find({
+      where: { schedule: { scheduleId: schedule.scheduleId } },
+      relations: ['group', 'user'],
+    });
+
+    const groupInfo = await Promise.all(
+      groupSchedules.map(async (groupSchedule) => {
+        const user = groupSchedule.user;
+        return {
+          groupId: groupSchedule.group.groupId,
+          groupName: groupSchedule.group.groupName,
+          users: [
+            {
+              uuid: user.userUuid,
+              name: user.name,
+              email: user.email,
+              phoneNumber: user.phoneNumber,
+              profileImageUrl: user.profileImage,
+            },
+          ],
+        };
+      }),
+    );
+
+    return new ResponseScheduleDto({
       scheduleId: schedule.scheduleId,
       userUuid: schedule.userUuid,
       category: schedule.category,
@@ -735,7 +761,8 @@ export class SchedulesService {
       recurringDaysOfWeek: schedule.recurringDaysOfWeek,
       recurringDayOfMonth: schedule.recurringDayOfMonth,
       recurringMonthOfYear: schedule.recurringMonthOfYear,
-    };
+      groupInfo: groupInfo.length > 0 ? groupInfo : undefined,
+    });
   }
 
   // GPT 관련 메서드

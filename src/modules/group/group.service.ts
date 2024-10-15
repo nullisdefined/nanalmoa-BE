@@ -20,6 +20,11 @@ import { RemoveGroupMemberDto } from './dto/remove-group-member.dto';
 import { UsersService } from '../users/users.service';
 import { GroupDetailResponseDto } from './dto/response-group-detail.dto';
 import { GroupInvitationDetailDto } from './dto/response-group-invitation-detail.dto';
+import { Schedule } from '@/entities/schedule.entity';
+import { GroupSchedule } from '@/entities/group-schedule.entity';
+import { GroupInfo } from '../schedules/dto/create-schedule.dto';
+import { UserInfo } from '../users/dto/user-info-detail.dto';
+import { User } from '@/entities/user.entity';
 
 @Injectable()
 export class GroupService {
@@ -30,8 +35,12 @@ export class GroupService {
     private userGroupRepository: Repository<UserGroup>,
     @InjectRepository(GroupInvitation)
     private groupInvitationRepository: Repository<GroupInvitation>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private dataSource: DataSource,
-    private readonly usersService: UsersService,
+    private usersService: UsersService,
+    @InjectRepository(GroupSchedule)
+    private groupScheduleRepository: Repository<GroupSchedule>,
   ) {}
 
   async createGroup(
@@ -525,5 +534,60 @@ export class GroupService {
       groupId: invitation.group.groupId,
       status: invitation.status,
     };
+  }
+
+  async linkScheduleToGroupsAndUsers(
+    schedule: Schedule,
+    groupInfo: GroupInfo[],
+  ): Promise<void> {
+    for (const info of groupInfo) {
+      const group = await this.groupRepository.findOne({
+        where: { groupId: info.groupId },
+      });
+      if (!group) {
+        throw new BadRequestException(
+          `그룹 ID ${info.groupId}를 찾을 수 없습니다.`,
+        );
+      }
+
+      for (const userUuid of info.userUuids) {
+        const groupSchedule = this.groupScheduleRepository.create({
+          userUuid,
+          group,
+          schedule,
+        });
+        await this.groupScheduleRepository.save(groupSchedule);
+      }
+    }
+  }
+
+  async getUsersForGroup(groupId: number): Promise<UserInfo[]> {
+    const userGroups = await this.userGroupRepository.find({
+      where: { group: { groupId } },
+      relations: ['group'],
+    });
+
+    if (userGroups.length === 0) {
+      throw new NotFoundException(
+        `해당 그룹ID :  ${groupId} 를 가진 그룹의 멤버가 없습니다.`,
+      );
+    }
+
+    const userUuids = userGroups.map((ug) => ug.userUuid);
+
+    // findByIds 대신 where 조건을 사용하여 쿼리 수행
+    const users = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.userUuid IN (:...userUuids)', { userUuids })
+      .getMany();
+
+    return users.map((user) => ({
+      uuid: user.userUuid,
+      name: user.name,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      profileImageUrl: user.profileImage,
+      isAdmin: userGroups.find((ug) => ug.userUuid === user.userUuid).isAdmin,
+    }));
   }
 }

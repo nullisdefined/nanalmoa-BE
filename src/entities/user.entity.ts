@@ -13,6 +13,7 @@ import { Auth } from './auth.entity';
 import { Schedule } from './schedule.entity';
 import { UserRoutine } from './user-routine.entity';
 import { GroupInvitation } from './group-invitation.entity';
+import { GroupSchedule } from './group-schedule.entity';
 
 @Entity('user')
 export class User {
@@ -67,4 +68,7 @@ export class User {
 
   @OneToMany(() => GroupInvitation, (invitation) => invitation.invitee)
   receivedGroupInvitations?: GroupInvitation[];
+
+  @OneToMany(() => GroupSchedule, (groupSchedule) => groupSchedule.user)
+  groupSchedules?: GroupSchedule[];
 }

@@ -1,4 +1,5 @@
 import {
+  Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
@@ -8,11 +9,15 @@ import {
 } from 'typeorm';
 import { Group } from './group.entity';
 import { Schedule } from './schedule.entity';
+import { User } from './user.entity';
 
-@Entity() // 그룹과 일정을 연결하는 중간 테이블 역할
+@Entity('group_schedule')
 export class GroupSchedule {
   @PrimaryGeneratedColumn({ name: 'group_schedule_id' })
   groupScheduleId: number;
+
+  @Column({ name: 'user_uuid' })
+  userUuid: string;
 
   @ManyToOne(() => Group, (group) => group.groupSchedules)
   @JoinColumn({ name: 'group_id' })
@@ -27,4 +32,8 @@ export class GroupSchedule {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @ManyToOne(() => User, (user) => user.groupSchedules)
+  @JoinColumn({ name: 'user_uuid', referencedColumnName: 'userUuid' })
+  user: User;
 }
