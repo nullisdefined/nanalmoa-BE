@@ -30,10 +30,10 @@ export class User {
   }
 
   @Column({ length: 20, nullable: true, name: 'name' })
-  name: string;
+  name?: string;
 
   @Column({ length: 255, nullable: true, name: 'profile_image' })
-  profileImage: string;
+  profileImage?: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -42,29 +42,29 @@ export class User {
   updatedAt: Date;
 
   @Column({ length: 50, nullable: true, name: 'email' })
-  email: string;
+  email?: string;
 
   @Column({ length: 20, unique: true, nullable: true, name: 'phone_number' })
-  phoneNumber: string;
+  phoneNumber?: string;
 
   @Column({ default: false, name: 'is_manager' })
   isManager: boolean;
 
   @Column({ length: 255, nullable: true, name: 'address' })
-  address: string;
+  address?: string;
 
   @OneToMany(() => Auth, (auth) => auth.user)
-  auths: Auth[];
+  auths?: Auth[];
 
   @OneToMany(() => Schedule, (schedule) => schedule.user)
-  schedules: Schedule[];
+  schedules?: Schedule[];
 
   @OneToOne(() => UserRoutine, (userRoutine) => userRoutine.user)
-  routine: UserRoutine;
+  routine?: UserRoutine;
 
   @OneToMany(() => GroupInvitation, (invitation) => invitation.inviter)
-  sentGroupInvitations: GroupInvitation[];
+  sentGroupInvitations?: GroupInvitation[];
 
   @OneToMany(() => GroupInvitation, (invitation) => invitation.invitee)
-  receivedGroupInvitations: GroupInvitation[];
+  receivedGroupInvitations?: GroupInvitation[];
 }

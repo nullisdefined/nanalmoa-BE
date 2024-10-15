@@ -1,14 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsEmail } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsEmail,
+  Matches,
+} from 'class-validator';
 
 export class BasicSignupDto {
   @ApiProperty({
     description: '전화번호',
-    example: '01012345678',
+    example: '010-1234-5678',
     required: true,
   })
   @IsNotEmpty()
   @IsString()
+  @Matches(/^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/, {
+    message: '올바른 전화번호 형식이 아닙니다.',
+  })
   phoneNumber: string;
 
   @ApiProperty({
