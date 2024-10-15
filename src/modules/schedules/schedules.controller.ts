@@ -221,6 +221,47 @@ export class SchedulesController {
     return this.schedulesService.findByMonth(subordinateUuid, year, month);
   }
 
+  @Get('year')
+  @ApiOperation({ summary: '특정 연도의 일정 조회' })
+  @ApiQuery({
+    name: 'userUuid',
+    required: false,
+    type: String,
+    description: '사용자의 UUID',
+  })
+  @ApiQuery({
+    name: 'year',
+    required: true,
+    type: Number,
+    description: '조회할 연도',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '일정 조회 성공',
+    type: [ResponseScheduleDto],
+  })
+  @ApiResponse({
+    status: 400,
+    description: '잘못된 요청',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: '유효하지 않은 연도입니다.',
+        },
+      },
+    },
+  })
+  async getSchedulesByYear(
+    @Req() req,
+    @Query('userUuid') queryUserUuid: string,
+    @Query('year') year: number,
+  ): Promise<ResponseScheduleDto[]> {
+    const userUuid = queryUserUuid || req.user.userUuid;
+    return this.schedulesService.findByYear(userUuid, year);
+  }
+
   @Get('range')
   @ApiOperation({ summary: '특정 날짜 범위의 일정 조회' })
   @ApiQuery({
