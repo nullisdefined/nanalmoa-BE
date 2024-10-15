@@ -284,7 +284,7 @@ export class UserSeeder implements Seeder {
   }
 
   private generatePhoneNumber(): string {
-    return `010${faker.string.numeric(8)}`;
+    return `010-${faker.string.numeric(4)}-${faker.string.numeric(4)}`;
   }
 
   async run(

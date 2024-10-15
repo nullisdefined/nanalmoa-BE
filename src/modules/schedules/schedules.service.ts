@@ -233,6 +233,13 @@ export class SchedulesService {
 
       // 반복 옵션 예외 검사
       this.validateRecurringOptions(createScheduleDto);
+    } else {
+      createScheduleDto.repeatType = null;
+      createScheduleDto.repeatEndDate = null;
+      createScheduleDto.recurringInterval = null;
+      createScheduleDto.recurringDaysOfWeek = null;
+      createScheduleDto.recurringDayOfMonth = null;
+      createScheduleDto.recurringMonthOfYear = null;
     }
 
     const newSchedule = this.schedulesRepository.create({
@@ -321,6 +328,7 @@ export class SchedulesService {
     instanceDate: Date,
     updateType: 'single' | 'future' = 'single',
   ): Promise<ResponseScheduleDto> {
+    // console.log(updateScheduleDto);
     const schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
       relations: ['category'],
@@ -366,6 +374,7 @@ export class SchedulesService {
     schedule: Schedule,
     updateScheduleDto: UpdateScheduleDto,
   ): Promise<ResponseScheduleDto> {
+    // console.log(updateScheduleDto);
     const { categoryId, ...updateData } = updateScheduleDto;
 
     // 제공된 필드만 업데이트
@@ -385,6 +394,7 @@ export class SchedulesService {
 
     // 변경된 일정 저장
     const updatedSchedule = await this.schedulesRepository.save(schedule);
+    // console.log(updatedSchedule);
 
     return this.convertToResponseDto(updatedSchedule);
   }
