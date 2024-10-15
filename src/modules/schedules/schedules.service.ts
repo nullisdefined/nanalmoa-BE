@@ -71,7 +71,17 @@ export class SchedulesService {
       endDate,
     );
 
-    const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
+    const sharedGroupSchedules = await this.findSharedGroupSchedules(
+      userUuid,
+      startDate,
+      endDate,
+    );
+
+    const allSchedules = [
+      ...regularSchedules,
+      ...expandedRecurringSchedules,
+      ...sharedGroupSchedules,
+    ];
     allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
     const convertedSchedules = await Promise.all(
@@ -79,6 +89,33 @@ export class SchedulesService {
     );
 
     return convertedSchedules;
+  }
+
+  // 공유된 일정을 파악하는 함수.
+  private async findSharedGroupSchedules(
+    userUuid: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Schedule[]> {
+    return this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .innerJoin('schedule.groupSchedules', 'groupSchedule')
+      .where('groupSchedule.userUuid = :userUuid', { userUuid })
+      .andWhere('schedule.startDate <= :endDate', { endDate })
+      .andWhere('schedule.endDate >= :startDate', { startDate })
+      .getMany();
+  }
+
+  private async findSharedGroupSchedulesByScheduleId(
+    userUuid: string,
+    scheduleId: number,
+  ): Promise<Schedule> {
+    return this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .innerJoin('schedule.groupSchedules', 'groupSchedule')
+      .where('groupSchedule.userUuid = :userUuid', { userUuid })
+      .andWhere('schedule.scheduleId = :scheduleId', { scheduleId })
+      .getOne();
   }
 
   /**
@@ -513,23 +550,27 @@ export class SchedulesService {
     instanceDate: string,
     deleteType: 'single' | 'future' = 'single',
   ): Promise<void> {
-    const schedule = await this.schedulesRepository.findOne({
+    // 일단 해당 ID로 사용자가 생성한 일정인지 찾음
+    let schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
     });
+    let isCreator = true;
+
+    // 사용자가 생성한 일정이 아니라면 공유 받은 일정인지 찾음
+    if (!schedule) {
+      const sharedSchedules = await this.findSharedGroupSchedulesByScheduleId(
+        userUuid,
+        scheduleId,
+      );
+      schedule = sharedSchedules;
+      isCreator = false;
+    }
 
     if (!schedule) {
       throw new NotFoundException(
         `ID가 ${scheduleId}인 일정을 찾을 수 없습니다.`,
       );
     }
-
-    // const groupSchedule = await this.groupScheduleRepository.findOne({
-    //   where: { schedule: { scheduleId }, user: { userUuid } },
-    // });
-
-    // const isGroupSchedule = !!groupSchedule;
-    // const isCreator = schedule.userUuid === userUuid;
-
     const targetDate = new Date(instanceDate);
 
     if (schedule.isRecurring) {
@@ -539,15 +580,39 @@ export class SchedulesService {
         );
       }
 
-      if (deleteType === 'future') {
-        await this.deleteFutureInstances(schedule, targetDate);
+      if (isCreator) {
+        if (deleteType === 'future') {
+          await this.deleteFutureInstances(schedule, targetDate);
+        } else {
+          await this.deleteSingleInstance(schedule, targetDate);
+        }
       } else {
-        await this.deleteSingleInstance(schedule, targetDate);
+        // 공유 받은 사용자라면 해당 날짜 이후의 그룹 일정에서만 제거
+        await this.removeUserFromFutureGroupSchedules(userUuid, schedule);
       }
     } else {
-      // 반복되지 않는 일정 삭제
-      await this.schedulesRepository.remove(schedule);
+      if (isCreator) {
+        // 일정 생성자인 경우 일정과 관련된 모든 그룹 일정 삭제
+        await this.groupScheduleRepository.delete({ schedule: { scheduleId } });
+        await this.schedulesRepository.remove(schedule);
+      } else {
+        // 공유 받은 사용자인 경우 해당 사용자의 그룹 일정만 삭제
+        await this.groupScheduleRepository.delete({
+          schedule: { scheduleId },
+          userUuid,
+        });
+      }
     }
+  }
+
+  private async removeUserFromFutureGroupSchedules(
+    userUuid: string,
+    schedule: Schedule,
+  ): Promise<void> {
+    await this.groupScheduleRepository.delete({
+      schedule: { scheduleId: schedule.scheduleId },
+      userUuid,
+    });
   }
 
   /**
@@ -753,11 +818,11 @@ export class SchedulesService {
           groupName: groupSchedule.group.groupName,
           users: [
             {
-              uuid: user.userUuid,
+              userUuid: user.userUuid,
               name: user.name,
               email: user.email,
               phoneNumber: user.phoneNumber,
-              profileImageUrl: user.profileImage,
+              profileImage: user.profileImage,
             },
           ],
         };
