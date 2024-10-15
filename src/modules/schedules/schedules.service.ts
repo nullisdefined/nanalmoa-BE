@@ -11,13 +11,10 @@ import { Category } from '@/entities/category.entity';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { ResponseScheduleDto } from './dto/response-schedule.dto';
-import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
-import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { VoiceTranscriptionService } from './voice-transcription.service';
-import { OCRTranscriptionService } from './OCR-transcription.service';
 import { UsersService } from '../users/users.service';
 import OpenAI from 'openai';
 
@@ -112,16 +109,13 @@ export class SchedulesService {
   /**
    * 일별 일정을 조회합니다.
    */
-  async findByDate(
-    userUuid: string,
-    dateQuery: WeekQueryDto,
-  ): Promise<ResponseScheduleDto[]> {
-    await this.validateUser(userUuid);
+  async findByDate(dateQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
+    await this.validateUser(dateQuery.userUuid);
     const startOfDay = new Date(dateQuery.date);
     startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(dateQuery.date);
     endOfDay.setUTCHours(23, 59, 59, 999);
-    return this.getSchedulesInRange(userUuid, startOfDay, endOfDay);
+    return this.getSchedulesInRange(dateQuery.userUuid, startOfDay, endOfDay);
   }
 
   /**
