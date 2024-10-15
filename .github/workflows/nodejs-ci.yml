@@ -38,6 +38,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
+          port: 22
           script: |
             cd /var/www/nestjs-app/nanalmoa-BE
             git pull origin main
