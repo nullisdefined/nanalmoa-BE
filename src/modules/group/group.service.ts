@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -589,5 +590,41 @@ export class GroupService {
       profileImage: user.profileImage,
       isAdmin: userGroups.find((ug) => ug.userUuid === user.userUuid).isAdmin,
     }));
+  }
+
+  async removeGroupMembersFromSchedule(
+    scheduleId: number,
+    groupInfo: GroupInfo[],
+  ): Promise<void> {
+    for (const group of groupInfo) {
+      try {
+        const groupUsers = await this.getUsersForGroup(group.groupId);
+        const validUserUuids = groupUsers.map((user) => user.userUuid);
+
+        for (const userUuid of group.userUuids) {
+          if (validUserUuids.includes(userUuid)) {
+            await this.groupScheduleRepository.delete({
+              schedule: { scheduleId },
+              group: { groupId: group.groupId },
+              userUuid,
+            });
+          } else {
+            console.warn(
+              `사용자 ${userUuid}는 그룹 ${group.groupId}의 멤버가 아닙니다. 제거를 건너뜁니다.`,
+            );
+          }
+        }
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          console.error(
+            `그룹 ${group.groupId}에 대한 사용자 정보를 찾을 수 없습니다: ${error.message}`,
+          );
+        } else {
+          throw new InternalServerErrorException(
+            `그룹 멤버 제거 중 오류가 발생했습니다: ${error.message}`,
+          );
+        }
+      }
+    }
   }
 }

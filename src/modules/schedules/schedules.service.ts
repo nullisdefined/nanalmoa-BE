@@ -10,7 +10,10 @@ import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '@/entities/category.entity';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
-import { ResponseScheduleDto } from './dto/response-schedule.dto';
+import {
+  ResponseGroupInfo,
+  ResponseScheduleDto,
+} from './dto/response-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
 import { ConfigService } from '@nestjs/config';
@@ -329,16 +332,24 @@ export class SchedulesService {
     updateType: 'single' | 'future' = 'single',
   ): Promise<ResponseScheduleDto> {
     // console.log(updateScheduleDto);
-    const schedule = await this.schedulesRepository.findOne({
+    let schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
       relations: ['category'],
     });
-
+    // 사용자가 생성한 일정이 아니라면 공유 받은 일정인지 찾음
+    if (!schedule) {
+      schedule = await this.findSharedGroupSchedulesByScheduleId(
+        userUuid,
+        scheduleId,
+      );
+    }
     if (!schedule) {
       throw new NotFoundException(
         `해당 ID : ${scheduleId}를 가진 일정을 찾을 수 없습니다.`,
       );
     }
+
+    const isCreator = schedule.userUuid === userUuid;
 
     if (schedule.isRecurring && instanceDate) {
       const isValidDate = this.isOccurrenceDate(schedule, instanceDate);
@@ -349,16 +360,18 @@ export class SchedulesService {
       }
     }
 
+    let updatedSchedule;
+
     if (schedule.isRecurring) {
       // 반복 일정 수정
       if (updateType === 'single') {
-        return this.updateSingleInstance(
+        updatedSchedule = await this.updateSingleInstance(
           schedule,
           updateScheduleDto,
           instanceDate,
         );
       } else {
-        return this.updateFutureInstances(
+        updatedSchedule = await this.updateFutureInstances(
           schedule,
           updateScheduleDto,
           instanceDate,
@@ -366,8 +379,28 @@ export class SchedulesService {
       }
     } else {
       // 일반 일정 수정
-      return this.updateNonRecurringSchedule(schedule, updateScheduleDto);
+      updatedSchedule = await this.updateNonRecurringSchedule(
+        schedule,
+        updateScheduleDto,
+      );
     }
+    // 그룹 정보 업데이트 (일정 생성자만 가능)
+    if (isCreator) {
+      if (updateScheduleDto.addGroupInfo) {
+        await this.groupService.linkScheduleToGroupsAndUsers(
+          updatedSchedule,
+          updateScheduleDto.addGroupInfo,
+        );
+      }
+      if (updateScheduleDto.deleteGroupInfo) {
+        await this.groupService.removeGroupMembersFromSchedule(
+          updatedSchedule.scheduleId,
+          updateScheduleDto.deleteGroupInfo,
+        );
+      }
+    }
+
+    return this.convertToResponseDto(updatedSchedule);
   }
 
   private async updateNonRecurringSchedule(
@@ -820,24 +853,27 @@ export class SchedulesService {
       relations: ['group', 'user'],
     });
 
-    const groupInfo = await Promise.all(
-      groupSchedules.map(async (groupSchedule) => {
-        const user = groupSchedule.user;
-        return {
-          groupId: groupSchedule.group.groupId,
-          groupName: groupSchedule.group.groupName,
-          users: [
-            {
-              userUuid: user.userUuid,
-              name: user.name,
-              email: user.email,
-              phoneNumber: user.phoneNumber,
-              profileImage: user.profileImage,
-            },
-          ],
-        };
-      }),
-    );
+    const groupMap = new Map<number, ResponseGroupInfo>();
+
+    groupSchedules.forEach((groupSchedule) => {
+      const { group, user } = groupSchedule;
+      if (!groupMap.has(group.groupId)) {
+        groupMap.set(group.groupId, {
+          groupId: group.groupId,
+          groupName: group.groupName,
+          users: [],
+        });
+      }
+      groupMap.get(group.groupId).users.push({
+        userUuid: user.userUuid,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        profileImage: user.profileImage,
+      });
+    });
+
+    const groupInfo = Array.from(groupMap.values());
 
     return new ResponseScheduleDto({
       scheduleId: schedule.scheduleId,

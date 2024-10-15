@@ -8,8 +8,10 @@ import {
   IsNumber,
   IsArray,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { GroupInfo } from './create-schedule.dto';
 
 export class UpdateScheduleDto {
   @ApiProperty({
@@ -143,4 +145,24 @@ export class UpdateScheduleDto {
   @IsOptional()
   @IsNumber()
   recurringMonthOfYear?: number;
+
+  @ApiProperty({
+    description: '추가할 그룹 정보',
+    type: [GroupInfo],
+    required: false,
+  })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => GroupInfo)
+  addGroupInfo?: GroupInfo[];
+
+  @ApiProperty({
+    description: '삭제할 그룹 정보',
+    type: [GroupInfo],
+    required: false,
+  })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => GroupInfo)
+  deleteGroupInfo?: GroupInfo[];
 }
