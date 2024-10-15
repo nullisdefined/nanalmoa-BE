@@ -11,7 +11,6 @@ import {
 import { Category } from './category.entity';
 import { GroupSchedule } from './group-schedule.entity';
 import { User } from './user.entity';
-import { ScheduleInstance } from './schedule-instance.entity';
 
 @Entity('schedule')
 export class Schedule {
@@ -69,9 +68,6 @@ export class Schedule {
 
   @OneToMany(() => GroupSchedule, (groupSchedule) => groupSchedule.schedule)
   groupSchedules: GroupSchedule[];
-
-  @OneToMany(() => ScheduleInstance, (instance) => instance.schedule)
-  instances: ScheduleInstance[];
 
   @Column({ name: 'is_recurring', default: false })
   isRecurring: boolean;

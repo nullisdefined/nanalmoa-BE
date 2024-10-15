@@ -3,7 +3,6 @@ import { Seeder } from 'typeorm-extension';
 import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '../../entities/category.entity';
 import { faker } from '@faker-js/faker/locale/ko';
-import { ScheduleInstance } from '@/entities/schedule-instance.entity';
 
 export class ScheduleSeeder implements Seeder {
   private scheduleTemplates = [
@@ -500,8 +499,6 @@ export class ScheduleSeeder implements Seeder {
 
   async run(dataSource: DataSource): Promise<void> {
     const categoryRepository = dataSource.getRepository(Category);
-    const scheduleInstanceRepository =
-      dataSource.getRepository(ScheduleInstance);
 
     const categories = await categoryRepository.find();
     if (categories.length === 0) {
@@ -605,13 +602,6 @@ export class ScheduleSeeder implements Seeder {
           console.log(
             `일정 생성: ${savedSchedule.title} (${savedSchedule.startDate.toISOString()} - ${savedSchedule.endDate.toISOString()})`,
           );
-
-          if (savedSchedule.isRecurring) {
-            await this.createScheduleInstances(
-              transactionalEntityManager,
-              savedSchedule,
-            );
-          }
         } catch (error) {
           console.error(`일정 생성 중 오류 발생: ${scheduleData.title}`, error);
         }
@@ -619,79 +609,5 @@ export class ScheduleSeeder implements Seeder {
     });
 
     console.log(`총 ${schedules.length}개의 일정이 생성되었습니다.`);
-  }
-
-  private async createScheduleInstances(
-    transactionalEntityManager,
-    schedule: Schedule,
-  ): Promise<void> {
-    let currentDate = new Date(schedule.startDate);
-    const endDate = schedule.repeatEndDate;
-    const duration = schedule.endDate.getTime() - schedule.startDate.getTime();
-
-    while (currentDate <= endDate) {
-      if (this.isEventOccurring(schedule, currentDate)) {
-        const instanceEndDate = new Date(currentDate.getTime() + duration);
-        const isException = faker.datatype.boolean(0.1);
-
-        if (isException) {
-          const exceptionMemo = faker.helpers.arrayElement(this.memoTemplates);
-          await transactionalEntityManager.save(ScheduleInstance, {
-            schedule,
-            instanceStartDate: new Date(currentDate),
-            instanceEndDate: instanceEndDate,
-            isException: true,
-            exceptionMemo,
-          });
-        } else {
-          await transactionalEntityManager.save(ScheduleInstance, {
-            schedule,
-            instanceStartDate: new Date(currentDate),
-            instanceEndDate: instanceEndDate,
-          });
-        }
-      }
-
-      currentDate = this.getNextOccurrence(schedule, currentDate);
-    }
-  }
-
-  private isEventOccurring(schedule: Schedule, date: Date): boolean {
-    switch (schedule.repeatType) {
-      case 'daily':
-        return true;
-      case 'weekly':
-        return schedule.recurringDaysOfWeek.includes(date.getDay());
-      case 'monthly':
-        return date.getDate() === schedule.recurringDayOfMonth;
-      case 'yearly':
-        return (
-          date.getMonth() + 1 === schedule.recurringMonthOfYear &&
-          date.getDate() === schedule.recurringDayOfMonth
-        );
-      default:
-        return false;
-    }
-  }
-
-  private getNextOccurrence(schedule: Schedule, currentDate: Date): Date {
-    const nextDate = new Date(currentDate);
-    switch (schedule.repeatType) {
-      case 'daily':
-        nextDate.setDate(nextDate.getDate() + schedule.recurringInterval);
-        break;
-      case 'weekly':
-        nextDate.setDate(nextDate.getDate() + 7 * schedule.recurringInterval);
-        break;
-      case 'monthly':
-        nextDate.setMonth(nextDate.getMonth() + schedule.recurringInterval);
-        break;
-      case 'yearly':
-        nextDate.setFullYear(
-          nextDate.getFullYear() + schedule.recurringInterval,
-        );
-        break;
-    }
-    return nextDate;
   }
 }

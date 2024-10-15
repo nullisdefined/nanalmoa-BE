@@ -95,12 +95,6 @@ export class ResponseScheduleDto {
   })
   recurringMonthOfYear?: number;
 
-  @ApiProperty({
-    description: '예외 일정 여부',
-    example: false,
-  })
-  isException: boolean;
-
   constructor(partial: Partial<ResponseScheduleDto>) {
     Object.assign(this, partial);
   }

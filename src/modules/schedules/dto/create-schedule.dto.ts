@@ -15,7 +15,7 @@ import { Type } from 'class-transformer';
 export class CreateScheduleDto {
   @ApiProperty({
     description: '일정 시작 날짜 및 시간',
-    example: '2023-10-15T09:00:00Z',
+    example: '2024-10-15T00:00:00Z',
   })
   @IsNotEmpty()
   @Type(() => Date)
@@ -24,7 +24,7 @@ export class CreateScheduleDto {
 
   @ApiProperty({
     description: '일정 종료 날짜 및 시간',
-    example: '2023-10-15T10:00:00Z',
+    example: '2024-10-15T01:00:00Z',
   })
   @IsNotEmpty()
   @Type(() => Date)
@@ -38,7 +38,7 @@ export class CreateScheduleDto {
   })
   @IsString()
   @IsOptional()
-  title?: string;
+  title?: string = '새로운 일정';
 
   @ApiProperty({
     description: '일정 장소',
@@ -47,7 +47,7 @@ export class CreateScheduleDto {
   })
   @IsString()
   @IsOptional()
-  place?: string;
+  place?: string = '';
 
   @ApiProperty({
     description: '일정에 대한 메모',
@@ -56,7 +56,7 @@ export class CreateScheduleDto {
   })
   @IsString()
   @IsOptional()
-  memo?: string;
+  memo?: string = '';
 
   @ApiProperty({
     description: '종일 일정 여부',
@@ -65,7 +65,7 @@ export class CreateScheduleDto {
   })
   @IsBoolean()
   @IsOptional()
-  isAllDay?: boolean;
+  isAllDay?: boolean = false;
 
   @ApiProperty({
     description: '일정 카테고리 ID',
@@ -74,7 +74,7 @@ export class CreateScheduleDto {
   })
   @IsNumber()
   @IsOptional()
-  categoryId?: number;
+  categoryId?: number = 7;
 
   @ApiProperty({ description: '반복 일정 여부', example: true })
   @IsBoolean()
@@ -84,7 +84,6 @@ export class CreateScheduleDto {
     description: '반복 유형',
     enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
     example: 'weekly',
-    default: 'none',
   })
   @IsEnum(['none', 'daily', 'weekly', 'monthly', 'yearly'])
   @IsOptional()
@@ -92,14 +91,14 @@ export class CreateScheduleDto {
 
   @ApiProperty({
     description: '반복 종료 날짜',
-    example: '2023-12-31T23:59:59Z',
+    example: '2024-11-02T23:59:59Z',
     required: false,
   })
   @ValidateIf((o) => o.isRecurring === true)
   @IsNotEmpty({ message: '반복 일정의 경우 반복 종료 날짜는 필수입니다.' })
   @Type(() => Date)
   @IsDate()
-  repeatEndDate?: Date;
+  repeatEndDate?: Date = null;
 
   @ApiProperty({
     description: '반복 간격 (일/주/월/년 단위)',
@@ -113,28 +112,28 @@ export class CreateScheduleDto {
   @ApiProperty({
     description:
       '주간 반복 시 반복할 요일 (0: 일요일, 1: 월요일, ..., 6: 토요일)',
-    example: [1, 3, 5],
+    example: [2, 4],
     required: false,
   })
   @IsArray()
   @IsOptional()
-  recurringDaysOfWeek?: number[];
+  recurringDaysOfWeek?: number[] = null;
 
   @ApiProperty({
     description: '월간 반복 시 반복할 날짜',
-    example: 15,
+    example: null,
     required: false,
   })
   @IsNumber()
   @IsOptional()
-  recurringDayOfMonth?: number;
+  recurringDayOfMonth?: number = null;
 
   @ApiProperty({
     description: '연간 반복 시 반복할 월 (1-12)',
-    example: 3,
+    example: null,
     required: false,
   })
   @IsNumber()
   @IsOptional()
-  recurringMonthOfYear?: number;
+  recurringMonthOfYear?: number = null;
 }
