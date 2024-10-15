@@ -106,6 +106,18 @@ export class SchedulesService {
       .getMany();
   }
 
+  private async findSharedGroupSchedulesByScheduleId(
+    userUuid: string,
+    scheduleId: number,
+  ): Promise<Schedule> {
+    return this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .innerJoin('schedule.groupSchedules', 'groupSchedule')
+      .where('groupSchedule.userUuid = :userUuid', { userUuid })
+      .andWhere('schedule.scheduleId = :scheduleId', { scheduleId })
+      .getOne();
+  }
+
   /**
    * 월별 일정을 조회합니다.
    */
@@ -309,10 +321,24 @@ export class SchedulesService {
     instanceDate: Date,
     updateType: 'single' | 'future' = 'single',
   ): Promise<ResponseScheduleDto> {
-    const schedule = await this.schedulesRepository.findOne({
+    // 사용자가 생성한 일정을 일단 찾음
+    let schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
-      relations: ['category'],
     });
+
+    // 사용자가 생성한 일정이 아니라면 공유 받은 일정인지 찾음
+    if (!schedule) {
+      const targetDate = new Date(instanceDate);
+      const startOfDay = new Date(targetDate.setUTCHours(0, 0, 0, 0));
+      const endOfDay = new Date(targetDate.setUTCHours(23, 59, 59, 999));
+
+      const sharedSchedules = await this.findSharedGroupSchedules(
+        userUuid,
+        startOfDay,
+        endOfDay,
+      );
+      schedule = sharedSchedules.find((s) => s.scheduleId === scheduleId);
+    }
 
     if (!schedule) {
       throw new NotFoundException(
@@ -526,16 +552,11 @@ export class SchedulesService {
 
     // 사용자가 생성한 일정이 아니라면 공유 받은 일정인지 찾음
     if (!schedule) {
-      const targetDate = new Date(instanceDate);
-      const startOfDay = new Date(targetDate.setUTCHours(0, 0, 0, 0));
-      const endOfDay = new Date(targetDate.setUTCHours(23, 59, 59, 999));
-
-      const sharedSchedules = await this.findSharedGroupSchedules(
+      const sharedSchedules = await this.findSharedGroupSchedulesByScheduleId(
         userUuid,
-        startOfDay,
-        endOfDay,
+        scheduleId,
       );
-      schedule = sharedSchedules.find((s) => s.scheduleId === scheduleId);
+      schedule = sharedSchedules;
       isCreator = false;
     }
 
