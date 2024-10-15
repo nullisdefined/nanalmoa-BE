@@ -209,19 +209,27 @@ export class AuthService {
     }
   }
 
-  async verifyCode(phoneNumber: string, code: string): Promise<boolean> {
+  async verifyCode(phoneNumber: string, code: string): Promise<void> {
     const storedData = this.verificationCodes.get(phoneNumber);
-    if (storedData && storedData.code === code) {
-      if (new Date() <= storedData.expiresAt) {
-        this.setPhoneNumberVerified(phoneNumber);
-        this.verificationCodes.delete(phoneNumber);
-        return true;
-      } else {
-        console.log('인증 코드가 만료되었습니다.');
-        this.verificationCodes.delete(phoneNumber);
-      }
+    if (!storedData) {
+      throw new UnauthorizedException('유효하지 않은 인증 코드입니다.');
     }
-    return false;
+    if (storedData.code !== code) {
+      throw new UnauthorizedException('유효하지 않은 인증 코드입니다.');
+    }
+    if (new Date() > storedData.expiresAt) {
+      throw new UnauthorizedException('유효하지 않은 인증 코드입니다.');
+    }
+
+    this.setPhoneNumberVerified(phoneNumber);
+    this.verificationCodes.set(phoneNumber, {
+      ...storedData,
+      isVerified: true,
+    });
+  }
+
+  invalidateVerificationCode(phoneNumber: string): void {
+    this.verificationCodes.delete(phoneNumber);
   }
 
   private async refreshBasicToken(
@@ -525,17 +533,25 @@ export class AuthService {
 
   async verifyEmailCode(email: string, code: string): Promise<boolean> {
     const storedData = this.emailVerificationCodes.get(email);
-    if (storedData && storedData.code === code) {
-      if (new Date() <= storedData.expiresAt) {
-        this.setEmailVerified(email);
-        this.emailVerificationCodes.delete(email);
-        return true;
-      } else {
-        console.log('인증 코드가 만료되었습니다.');
-        this.emailVerificationCodes.delete(email);
-      }
+    if (!storedData) {
+      console.log('저장된 이메일 인증 코드가 없습니다.');
+      return false;
     }
-    return false;
+
+    if (storedData.code !== code) {
+      console.log('잘못된 이메일 인증 코드입니다.');
+      return false;
+    }
+
+    if (new Date() > storedData.expiresAt) {
+      console.log('이메일 인증 코드가 만료되었습니다.');
+      this.emailVerificationCodes.delete(email);
+      return false;
+    }
+
+    this.setEmailVerified(email);
+    this.emailVerificationCodes.delete(email);
+    return true;
   }
 
   private isValidEmail(email: string): boolean {

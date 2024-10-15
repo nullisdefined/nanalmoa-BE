@@ -15,7 +15,6 @@ import { Group } from './entities/group.entity';
 import { GroupInvitation } from './entities/group-invitation.entity';
 import { GroupSchedule } from './entities/group-schedule.entity';
 import { UserGroup } from './entities/user-group.entity';
-import { ScheduleInstance } from './entities/schedule-instance.entity';
 import { UserRoutine } from './entities/user-routine.entity';
 
 config({ path: resolve(__dirname, `../.${process.env.NODE_ENV}.env`) });
@@ -38,7 +37,6 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     GroupInvitation,
     GroupSchedule,
     UserGroup,
-    ScheduleInstance,
     UserRoutine,
   ],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
@@ -47,9 +45,9 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     process.env.NODE_ENV === 'production'
       ? { rejectUnauthorized: false }
       : false,
-  extra: {
-    timezone: '+09:00',
-  },
+  // extra: {
+  //   timezone: '+09:00',
+  // },
   synchronize: process.env.NODE_ENV === 'production' ? false : true,
 };
 

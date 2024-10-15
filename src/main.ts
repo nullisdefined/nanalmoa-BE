@@ -50,7 +50,7 @@ async function bootstrap() {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        name: 'Authorization',
+        name: 'authorization',
         in: 'header',
       },
       'Access-Token',

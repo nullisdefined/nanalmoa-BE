@@ -199,11 +199,7 @@ export class AuthController {
   })
   verifyCode(@Body() verifyCodeDto: VerifyCodeDto) {
     const { phoneNumber, code } = verifyCodeDto;
-    const isValid = this.authService.verifyCode(phoneNumber, code);
-    if (!isValid) {
-      throw new BadRequestException('유효하지 않은 인증 코드입니다.');
-    }
-    return { message: '인증 성공' };
+    return this.authService.verifyCode(phoneNumber, code);
   }
 
   @Post('basic/signup')
@@ -214,15 +210,20 @@ export class AuthController {
     schema: BasicSignupResponseSchema,
   })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
+  @ApiResponse({ status: 401, description: '인증 실패' })
   async signup(@Body() signupDto: BasicSignupDto) {
     const { phoneNumber, verificationCode, name, email, profileImage } =
       signupDto;
 
+    await this.authService.verifyCode(phoneNumber, verificationCode);
+
+    this.authService.invalidateVerificationCode(phoneNumber);
+
     return await this.authService.signupWithPhoneNumber(
       phoneNumber,
-      verificationCode,
       name,
       email,
+      profileImage,
     );
   }
 
@@ -236,9 +237,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: '인증 실패' })
   async login(@Body() loginDto: BasicLoginDto) {
     const { phoneNumber, verificationCode } = loginDto;
-    if (!this.authService.verifyCode(phoneNumber, verificationCode)) {
-      throw new UnauthorizedException('유효하지 않은 인증 코드입니다.');
-    }
+    await this.authService.verifyCode(phoneNumber, verificationCode);
     const user = await this.authService.validateUserByPhoneNumber(phoneNumber);
     const tokens = await this.authService.loginWithPhoneNumber(user);
     return {
