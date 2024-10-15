@@ -402,4 +402,43 @@ export class ManagerService {
       );
     }
   }
+
+  async validateAndCheckManagerRelation(
+    managerUuid: string,
+    subordinateUuid: string,
+  ): Promise<boolean> {
+    try {
+      await this.validateUsers({ managerUuid, subordinateUuid });
+
+      const relation = await this.managerSubordinateRepository.findOne({
+        where: { managerUuid, subordinateUuid },
+      });
+
+      if (relation) {
+        this.logger.log(
+          `사용자 ${managerUuid}는 ${subordinateUuid}의 관리자입니다.`,
+        );
+        return true;
+      } else {
+        this.logger.log(
+          `사용자 ${managerUuid}는 ${subordinateUuid}의 관리자가 아닙니다.`,
+        );
+        return false;
+      }
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      this.logger.error(
+        `관리자 관계 확인 중 오류 발생: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        '관리자 관계 확인 중 오류가 발생했습니다.',
+      );
+    }
+  }
 }

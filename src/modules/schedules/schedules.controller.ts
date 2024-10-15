@@ -11,6 +11,7 @@ import {
   UploadedFile,
   Req,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,14 +26,13 @@ import {
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { SchedulesService } from './schedules.service';
 import { ResponseScheduleDto } from './dto/response-schedule.dto';
-import { MonthQueryDto } from './dto/month-query-schedule.dto';
-import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { VoiceScheduleUploadDto } from './dto/voice-schedule-upload.dto';
 import { OCRScheduleUploadDto } from './dto/ocr-schedule-upload.dto';
 import { OCRTranscriptionService } from './OCR-transcription.service';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
+import { ManagerService } from '../manager/manager.service';
 
 @ApiTags('Schedules')
 @UseGuards(AuthGuard('jwt'))
@@ -42,6 +42,7 @@ export class SchedulesController {
   constructor(
     private readonly schedulesService: SchedulesService,
     private readonly ocrTranscriptionService: OCRTranscriptionService,
+    private readonly managerService: ManagerService,
   ) {}
 
   @Get('day')
@@ -81,9 +82,23 @@ export class SchedulesController {
     @Query('date') date: string,
     @Query('userUuid') queryUserUuid?: string,
   ): Promise<ResponseScheduleDto[]> {
-    const userUuid = queryUserUuid || req.user.userUuid;
-    return this.schedulesService.findByDate(userUuid, {
-      userUuid,
+    const managerUuid = req.user.userUuid;
+    const subordinateUuid = queryUserUuid || managerUuid;
+
+    if (subordinateUuid !== managerUuid) {
+      const isManager =
+        await this.managerService.validateAndCheckManagerRelation(
+          managerUuid,
+          subordinateUuid,
+        );
+      if (!isManager) {
+        throw new ForbiddenException(
+          '해당 사용자의 일정을 조회할 권한이 없습니다.',
+        );
+      }
+    }
+    return this.schedulesService.findByDate({
+      userUuid: subordinateUuid,
       date: new Date(date),
     });
   }
@@ -125,8 +140,23 @@ export class SchedulesController {
     @Query('userUuid') queryUserUuid: string,
     @Query('date') date: string,
   ): Promise<ResponseScheduleDto[]> {
-    const userUuid = queryUserUuid || req.user.userUuid;
-    return this.schedulesService.findByWeek(userUuid, date);
+    const managerUuid = req.user.userUuid;
+    const subordinateUuid = queryUserUuid || managerUuid;
+
+    if (subordinateUuid !== managerUuid) {
+      const isManager =
+        await this.managerService.validateAndCheckManagerRelation(
+          managerUuid,
+          subordinateUuid,
+        );
+      if (!isManager) {
+        throw new ForbiddenException(
+          '해당 사용자의 일정을 조회할 권한이 없습니다.',
+        );
+      }
+    }
+
+    return this.schedulesService.findByWeek(subordinateUuid, date);
   }
 
   @Get('month')
@@ -173,8 +203,22 @@ export class SchedulesController {
     @Query('year') year: number,
     @Query('month') month: number,
   ): Promise<ResponseScheduleDto[]> {
-    const userUuid = queryUserUuid || req.user.userUuid;
-    return this.schedulesService.findByMonth(userUuid, year, month);
+    const managerUuid = req.user.userUuid;
+    const subordinateUuid = queryUserUuid || managerUuid;
+
+    if (subordinateUuid !== managerUuid) {
+      const isManager =
+        await this.managerService.validateAndCheckManagerRelation(
+          managerUuid,
+          subordinateUuid,
+        );
+      if (!isManager) {
+        throw new ForbiddenException(
+          '해당 사용자의 일정을 조회할 권한이 없습니다.',
+        );
+      }
+    }
+    return this.schedulesService.findByMonth(subordinateUuid, year, month);
   }
 
   @Get('year')
@@ -224,7 +268,7 @@ export class SchedulesController {
     name: 'userUuid',
     required: false,
     type: String,
-    description: '사용자의 UUID',
+    description: '피관리자의 UUID (없으면 본인의 일정 조회)',
   })
   @ApiQuery({
     name: 'startDate',
@@ -249,9 +293,24 @@ export class SchedulesController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ): Promise<ResponseScheduleDto[]> {
-    const userUuid = queryUserUuid || req.user.userUuid;
+    const managerUuid = req.user.userUuid;
+    const subordinateUuid = queryUserUuid || managerUuid;
+
+    if (subordinateUuid !== managerUuid) {
+      const isManager =
+        await this.managerService.validateAndCheckManagerRelation(
+          managerUuid,
+          subordinateUuid,
+        );
+      if (!isManager) {
+        throw new ForbiddenException(
+          '해당 사용자의 일정을 조회할 권한이 없습니다.',
+        );
+      }
+    }
+
     return this.schedulesService.getSchedulesInRange(
-      userUuid,
+      subordinateUuid,
       new Date(startDate),
       new Date(endDate),
     );

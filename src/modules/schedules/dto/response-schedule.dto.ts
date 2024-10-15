@@ -1,6 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { Category } from '@/entities/category.entity';
+import { UserInfo } from '@/modules/users/dto/user-info-detail.dto';
+
+class ResponseGroupInfo {
+  @ApiProperty({ description: '그룹 ID', example: 2 })
+  groupId: number;
+
+  @ApiProperty({ description: '그룹 이름', example: '개발팀' })
+  groupName: string;
+
+  @ApiProperty({ description: '그룹에 속한 사용자 정보', type: [UserInfo] })
+  users: UserInfo[];
+}
 
 export class ResponseScheduleDto {
   @ApiProperty({ description: '일정 ID', example: 1 })
@@ -95,7 +107,20 @@ export class ResponseScheduleDto {
   })
   recurringMonthOfYear?: number;
 
+  @ApiProperty({
+    description: '그룹 및 사용자 정보',
+    type: [ResponseGroupInfo],
+  })
+  groupInfo?: ResponseGroupInfo[];
+
+  @ApiProperty({
+    description: '그룹 일정 여부',
+    example: false,
+  })
+  isGroupSchedule: boolean;
+
   constructor(partial: Partial<ResponseScheduleDto>) {
     Object.assign(this, partial);
+    this.isGroupSchedule = !!this.groupInfo && this.groupInfo.length > 0;
   }
 }

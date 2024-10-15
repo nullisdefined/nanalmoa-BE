@@ -8,9 +8,31 @@ import {
   IsNumber,
   IsArray,
   ValidateIf,
+  IsUUID,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+
+export class GroupInfo {
+  @ApiProperty({
+    description: '그룹 ID',
+    example: 1,
+  })
+  @IsNumber()
+  @IsNotEmpty()
+  groupId: number;
+
+  @ApiProperty({
+    description: '그룹에 속한 사용자 UUID 배열',
+    example: ['9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'],
+    type: [String],
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsNotEmpty()
+  userUuids: string[];
+}
 
 export class CreateScheduleDto {
   @ApiProperty({
@@ -136,4 +158,15 @@ export class CreateScheduleDto {
   @IsNumber()
   @IsOptional()
   recurringMonthOfYear?: number = null;
+
+  @ApiProperty({
+    description: '그룹 정보 배열',
+    type: [GroupInfo],
+    required: false,
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => GroupInfo)
+  @IsOptional()
+  groupInfo?: GroupInfo[];
 }

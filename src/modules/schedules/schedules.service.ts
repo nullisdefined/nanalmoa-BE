@@ -5,21 +5,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '@/entities/category.entity';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { ResponseScheduleDto } from './dto/response-schedule.dto';
-import { MonthQueryDto } from './dto/month-query-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
-import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { VoiceTranscriptionService } from './voice-transcription.service';
-import { OCRTranscriptionService } from './OCR-transcription.service';
 import { UsersService } from '../users/users.service';
 import OpenAI from 'openai';
+import { GroupService } from '../group/group.service';
+import { GroupSchedule } from '@/entities/group-schedule.entity';
 
 @Injectable()
 export class SchedulesService {
@@ -34,6 +33,9 @@ export class SchedulesService {
     private readonly configService: ConfigService,
     private readonly voiceTranscriptionService: VoiceTranscriptionService,
     private readonly usersService: UsersService,
+    @InjectRepository(GroupSchedule)
+    private groupScheduleRepository: Repository<GroupSchedule>,
+    private groupService: GroupService,
   ) {
     const openaiApiKey = this.configService.get<string>('OPENAI_API_KEY');
     this.openai = new OpenAI({ apiKey: openaiApiKey });
@@ -72,7 +74,11 @@ export class SchedulesService {
     const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
     allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
-    return allSchedules.map((schedule) => this.convertToResponseDto(schedule));
+    const convertedSchedules = await Promise.all(
+      allSchedules.map((schedule) => this.convertToResponseDto(schedule)),
+    );
+
+    return convertedSchedules;
   }
 
   /**
@@ -112,16 +118,13 @@ export class SchedulesService {
   /**
    * 일별 일정을 조회합니다.
    */
-  async findByDate(
-    userUuid: string,
-    dateQuery: WeekQueryDto,
-  ): Promise<ResponseScheduleDto[]> {
-    await this.validateUser(userUuid);
+  async findByDate(dateQuery: WeekQueryDto): Promise<ResponseScheduleDto[]> {
+    await this.validateUser(dateQuery.userUuid);
     const startOfDay = new Date(dateQuery.date);
     startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(dateQuery.date);
     endOfDay.setUTCHours(23, 59, 59, 999);
-    return this.getSchedulesInRange(userUuid, startOfDay, endOfDay);
+    return this.getSchedulesInRange(dateQuery.userUuid, startOfDay, endOfDay);
   }
 
   /**
@@ -210,6 +213,12 @@ export class SchedulesService {
     }
 
     const savedSchedule = await this.schedulesRepository.save(newSchedule);
+    if (createScheduleDto.groupInfo && createScheduleDto.groupInfo.length > 0) {
+      await this.groupService.linkScheduleToGroupsAndUsers(
+        savedSchedule,
+        createScheduleDto.groupInfo,
+      );
+    }
 
     return this.convertToResponseDto(savedSchedule);
   }
@@ -494,6 +503,13 @@ export class SchedulesService {
       );
     }
 
+    // const groupSchedule = await this.groupScheduleRepository.findOne({
+    //   where: { schedule: { scheduleId }, user: { userUuid } },
+    // });
+
+    // const isGroupSchedule = !!groupSchedule;
+    // const isCreator = schedule.userUuid === userUuid;
+
     const targetDate = new Date(instanceDate);
 
     if (schedule.isRecurring) {
@@ -701,8 +717,34 @@ export class SchedulesService {
     }
   }
 
-  private convertToResponseDto(schedule: Schedule): ResponseScheduleDto {
-    return {
+  private async convertToResponseDto(
+    schedule: Schedule,
+  ): Promise<ResponseScheduleDto> {
+    const groupSchedules = await this.groupScheduleRepository.find({
+      where: { schedule: { scheduleId: schedule.scheduleId } },
+      relations: ['group', 'user'],
+    });
+
+    const groupInfo = await Promise.all(
+      groupSchedules.map(async (groupSchedule) => {
+        const user = groupSchedule.user;
+        return {
+          groupId: groupSchedule.group.groupId,
+          groupName: groupSchedule.group.groupName,
+          users: [
+            {
+              uuid: user.userUuid,
+              name: user.name,
+              email: user.email,
+              phoneNumber: user.phoneNumber,
+              profileImageUrl: user.profileImage,
+            },
+          ],
+        };
+      }),
+    );
+
+    return new ResponseScheduleDto({
       scheduleId: schedule.scheduleId,
       userUuid: schedule.userUuid,
       category: schedule.category,
@@ -719,7 +761,8 @@ export class SchedulesService {
       recurringDaysOfWeek: schedule.recurringDaysOfWeek,
       recurringDayOfMonth: schedule.recurringDayOfMonth,
       recurringMonthOfYear: schedule.recurringMonthOfYear,
-    };
+      groupInfo: groupInfo.length > 0 ? groupInfo : undefined,
+    });
   }
 
   // GPT 관련 메서드

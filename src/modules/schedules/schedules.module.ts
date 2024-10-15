@@ -12,13 +12,18 @@ import { User } from '@/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { Auth } from '@/entities/auth.entity';
 import { UsersModule } from '../users/users.module';
+import { ManagerModule } from '../manager/manager.module';
+import { GroupModule } from '../group/group.module';
+import { GroupSchedule } from '@/entities/group-schedule.entity';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Schedule, User, Auth]),
+    TypeOrmModule.forFeature([Schedule, User, Auth, GroupSchedule]),
     HttpModule,
     ConfigModule,
     CategoriesModule,
     UsersModule,
+    ManagerModule,
+    GroupModule,
   ],
   controllers: [SchedulesController],
   providers: [

@@ -13,6 +13,7 @@ import { Auth } from './auth.entity';
 import { Schedule } from './schedule.entity';
 import { UserRoutine } from './user-routine.entity';
 import { GroupInvitation } from './group-invitation.entity';
+import { GroupSchedule } from './group-schedule.entity';
 
 @Entity('user')
 export class User {
@@ -29,10 +30,10 @@ export class User {
     }
   }
 
-  @Column({ length: 20, nullable: true, name: 'name' })
+  @Column({ length: 20, nullable: true, name: 'name', default: '' })
   name?: string;
 
-  @Column({ length: 255, nullable: true, name: 'profile_image' })
+  @Column({ length: 255, nullable: true, name: 'profile_image', default: '' })
   profileImage?: string;
 
   @CreateDateColumn({ name: 'created_at' })
@@ -41,16 +42,22 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Column({ length: 50, nullable: true, name: 'email' })
+  @Column({ length: 50, nullable: true, name: 'email', default: '' })
   email?: string;
 
-  @Column({ length: 20, unique: true, nullable: true, name: 'phone_number' })
+  @Column({
+    length: 20,
+    unique: true,
+    nullable: true,
+    name: 'phone_number',
+    default: '',
+  })
   phoneNumber?: string;
 
   @Column({ default: false, name: 'is_manager' })
   isManager: boolean;
 
-  @Column({ length: 255, nullable: true, name: 'address' })
+  @Column({ length: 255, nullable: true, name: 'address', default: '' })
   address?: string;
 
   @OneToMany(() => Auth, (auth) => auth.user)
@@ -67,4 +74,7 @@ export class User {
 
   @OneToMany(() => GroupInvitation, (invitation) => invitation.invitee)
   receivedGroupInvitations?: GroupInvitation[];
+
+  @OneToMany(() => GroupSchedule, (groupSchedule) => groupSchedule.user)
+  groupSchedules?: GroupSchedule[];
 }

@@ -55,4 +55,13 @@ export class BasicSignupDto {
   @IsOptional()
   @IsString()
   profileImage?: string;
+
+  @ApiProperty({
+    description: '주소',
+    example: '서울특별시 강남구 테헤란로 123',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

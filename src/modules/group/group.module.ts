@@ -7,6 +7,7 @@ import { UserGroup } from '@/entities/user-group.entity';
 import { GroupSchedule } from '@/entities/group-schedule.entity';
 import { GroupInvitation } from '@/entities/group-invitation.entity';
 import { UsersModule } from '../users/users.module';
+import { User } from '@/entities/user.entity';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { UsersModule } from '../users/users.module';
       UserGroup,
       GroupSchedule,
       GroupInvitation,
+      User,
     ]),
     UsersModule,
   ],
