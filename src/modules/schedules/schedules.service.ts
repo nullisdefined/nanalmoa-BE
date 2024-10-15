@@ -71,7 +71,17 @@ export class SchedulesService {
       endDate,
     );
 
-    const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
+    const sharedGroupSchedules = await this.findSharedGroupSchedules(
+      userUuid,
+      startDate,
+      endDate,
+    );
+
+    const allSchedules = [
+      ...regularSchedules,
+      ...expandedRecurringSchedules,
+      ...sharedGroupSchedules,
+    ];
     allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
     const convertedSchedules = await Promise.all(
@@ -79,6 +89,21 @@ export class SchedulesService {
     );
 
     return convertedSchedules;
+  }
+
+  // 공유된 일정을 파악하는 함수.
+  private async findSharedGroupSchedules(
+    userUuid: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Schedule[]> {
+    return this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .innerJoin('schedule.groupSchedules', 'groupSchedule')
+      .where('groupSchedule.userUuid = :userUuid', { userUuid })
+      .andWhere('schedule.startDate <= :endDate', { endDate })
+      .andWhere('schedule.endDate >= :startDate', { startDate })
+      .getMany();
   }
 
   /**
@@ -733,11 +758,11 @@ export class SchedulesService {
           groupName: groupSchedule.group.groupName,
           users: [
             {
-              uuid: user.userUuid,
+              userUuid: user.userUuid,
               name: user.name,
               email: user.email,
               phoneNumber: user.phoneNumber,
-              profileImageUrl: user.profileImage,
+              profileImage: user.profileImage,
             },
           ],
         };
