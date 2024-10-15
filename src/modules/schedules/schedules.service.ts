@@ -202,7 +202,7 @@ export class SchedulesService {
       ...createScheduleDto,
       userUuid,
       category,
-      isRecurring: createScheduleDto.repeatType !== 'none',
+      isRecurring: createScheduleDto.isRecurring,
     });
 
     if (newSchedule.isAllDay) {
