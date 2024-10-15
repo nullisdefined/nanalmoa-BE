@@ -196,6 +196,13 @@ export class SchedulesService {
 
       // 반복 옵션 예외 검사
       this.validateRecurringOptions(createScheduleDto);
+    } else {
+      createScheduleDto.repeatType = null;
+      createScheduleDto.repeatEndDate = null;
+      createScheduleDto.recurringInterval = null;
+      createScheduleDto.recurringDaysOfWeek = null;
+      createScheduleDto.recurringDayOfMonth = null;
+      createScheduleDto.recurringMonthOfYear = null;
     }
 
     const newSchedule = this.schedulesRepository.create({
