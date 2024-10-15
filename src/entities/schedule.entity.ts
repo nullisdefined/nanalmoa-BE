@@ -34,16 +34,16 @@ export class Schedule {
   @Column({ name: 'end_date', type: 'timestamp' })
   endDate: Date;
 
-  @Column({ length: 255, nullable: false, default: '새로운 일정' })
+  @Column({ length: 255, nullable: true, default: '새로운 일정' })
   title?: string;
 
-  @Column({ length: 255, default: '' })
+  @Column({ length: 255, nullable: true })
   place?: string;
 
-  @Column({ type: 'text', default: '' })
+  @Column({ type: 'text', nullable: true })
   memo?: string;
 
-  @Column({ name: 'is_all_day', default: false })
+  @Column({ name: 'is_all_day', nullable: true })
   isAllDay?: boolean;
 
   @Column({ name: 'is_group_schedule', default: false })
@@ -53,7 +53,7 @@ export class Schedule {
     name: 'repeat_type',
     type: 'enum',
     enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
-    default: 'none',
+    nullable: true,
   })
   repeatType: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 

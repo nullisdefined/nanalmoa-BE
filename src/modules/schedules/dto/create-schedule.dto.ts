@@ -100,7 +100,7 @@ export class CreateScheduleDto {
 
   @ApiProperty({ description: '반복 일정 여부', example: true })
   @IsBoolean()
-  isRecurring: boolean;
+  isRecurring: boolean = false;
 
   @ApiProperty({
     description: '반복 유형',
