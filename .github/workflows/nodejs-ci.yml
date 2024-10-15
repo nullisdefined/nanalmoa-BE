@@ -31,16 +31,16 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/nestjs-app/nanalmoa-BE
             git pull origin main
             npm ci
             npm run build
-            pm2 restart nanalmoa  # 앱 이름을 실제 PM2에서 사용하는 이름으로 변경하세요
+            pm2 restart nanalmoa
