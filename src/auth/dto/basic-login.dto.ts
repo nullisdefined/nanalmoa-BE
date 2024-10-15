@@ -4,7 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export class BasicLoginDto {
   @ApiProperty({
     description: '사용자 전화번호',
-    example: '01012345678',
+    example: '010-1234-5678',
     required: true,
   })
   @IsString()

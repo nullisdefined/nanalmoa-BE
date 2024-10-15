@@ -4,7 +4,7 @@ import { IsString, IsNotEmpty, Length } from 'class-validator';
 export class VerifyCodeDto {
   @ApiProperty({
     description: '인증 코드를 받은 전화번호',
-    example: '01012345678',
+    example: '010-1234-5678',
   })
   @IsString()
   @IsNotEmpty()
