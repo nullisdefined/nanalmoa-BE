@@ -41,8 +41,8 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     default: '새로운 일정',
     required: false,
   })
-  @IsString()
   @IsOptional()
+  @IsString()
   title?: string;
 
   @ApiProperty({
@@ -50,8 +50,8 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     example: '회의실 A',
     required: false,
   })
-  @IsString()
   @IsOptional()
+  @IsString()
   place?: string;
 
   @ApiProperty({
@@ -59,14 +59,13 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     example: '프로젝트 진행 상황 논의',
     required: false,
   })
-  @IsString()
   @IsOptional()
+  @IsString()
   memo?: string;
 
   @ApiProperty({
     description: '종일 일정 여부',
     example: false,
-    default: false,
     required: false,
   })
   @IsBoolean()
@@ -79,8 +78,8 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     default: 7,
     required: false,
   })
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   categoryId?: number;
 
   @ApiProperty({
@@ -88,15 +87,14 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     example: true,
     required: false,
   })
-  @IsBoolean()
   @IsOptional()
+  @IsBoolean()
   isRecurring?: boolean;
 
   @ApiProperty({
     description: '반복 유형',
     enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
     example: 'weekly',
-    default: 'none',
     required: false,
   })
   @IsEnum(['none', 'daily', 'weekly', 'monthly', 'yearly'])
@@ -119,8 +117,8 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     example: 1,
     required: false,
   })
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   recurringInterval?: number;
 
   @ApiProperty({
@@ -129,8 +127,8 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     example: [2, 4],
     required: false,
   })
-  @IsArray()
   @IsOptional()
+  @IsArray()
   recurringDaysOfWeek?: number[];
 
   @ApiProperty({
@@ -138,8 +136,8 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     example: null,
     required: false,
   })
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   recurringDayOfMonth?: number;
 
   @ApiProperty({
@@ -147,7 +145,7 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
     example: null,
     required: false,
   })
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   recurringMonthOfYear?: number;
 }

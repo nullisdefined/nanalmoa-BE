@@ -321,15 +321,35 @@ export class SchedulesService {
       }
     } else {
       // 일반 일정 수정
-      Object.assign(schedule, updateScheduleDto);
-      if (updateScheduleDto.categoryId) {
-        schedule.category = await this.getCategoryById(
-          updateScheduleDto.categoryId,
-        );
-      }
-      const updatedSchedule = await this.schedulesRepository.save(schedule);
-      return this.convertToResponseDto(updatedSchedule);
+      return this.updateNonRecurringSchedule(schedule, updateScheduleDto);
     }
+  }
+
+  private async updateNonRecurringSchedule(
+    schedule: Schedule,
+    updateScheduleDto: UpdateScheduleDto,
+  ): Promise<ResponseScheduleDto> {
+    const { categoryId, ...updateData } = updateScheduleDto;
+
+    // 제공된 필드만 업데이트
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined && value !== '') {
+        schedule[key] = value;
+      }
+    }
+
+    // 카테고리 ID가 제공된 경우에만 카테고리 업데이트
+    if (categoryId !== undefined) {
+      const newCategory = await this.getCategoryById(categoryId);
+      if (newCategory) {
+        schedule.category = newCategory;
+      }
+    }
+
+    // 변경된 일정 저장
+    const updatedSchedule = await this.schedulesRepository.save(schedule);
+
+    return this.convertToResponseDto(updatedSchedule);
   }
 
   /**
