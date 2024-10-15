@@ -11,12 +11,14 @@ import { OCRTranscriptionService } from './OCR-transcription.service';
 import { User } from '@/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { Auth } from '@/entities/auth.entity';
+import { UsersModule } from '../users/users.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Schedule, User, Auth]),
     HttpModule,
     ConfigModule,
     CategoriesModule,
+    UsersModule,
   ],
   controllers: [SchedulesController],
   providers: [
