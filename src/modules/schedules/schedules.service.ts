@@ -215,7 +215,7 @@ export class SchedulesService {
     }
 
     // 반복 일정에 대한 유효성 검사
-    if (createScheduleDto.repeatType !== 'none') {
+    if (createScheduleDto.isRecurring) {
       if (!createScheduleDto.repeatEndDate) {
         throw new BadRequestException(
           '반복 일정은 반드시 종료일(repeatEndDate)을 지정해야 합니다.',
