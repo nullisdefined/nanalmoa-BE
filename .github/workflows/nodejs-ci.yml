@@ -36,8 +36,17 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            mkdir -p /var/www/nestjs-app/nanalmoa-BE
             cd /var/www/nestjs-app/nanalmoa-BE
-            git pull
+
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/nullisdefined/nanalmoa-BE.git .
+            else
+              git pull
+            fi
+
             npm ci
             npm run build
-            pm2 restart nanalmoa
+
+            # Restart PM2 process, start if not running
+            pm2 start app.js --name nanalmoa || pm2 restart nanalmoa
