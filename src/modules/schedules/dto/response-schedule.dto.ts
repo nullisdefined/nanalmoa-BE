@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { Category } from '@/entities/category.entity';
 import { UserInfo } from '@/modules/users/dto/user-info-detail.dto';
 
-class ResponseGroupInfo {
+export class ResponseGroupInfo {
   @ApiProperty({ description: '그룹 ID', example: 2 })
   groupId: number;
 
