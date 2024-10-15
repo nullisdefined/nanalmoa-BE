@@ -42,9 +42,31 @@ export class SchedulesService {
    * 사용자의 모든 일정을 조회합니다.
    */
   async findAllByUserUuid(userUuid: string): Promise<ResponseScheduleDto[]> {
-    const startDate = new Date(Date.UTC(2000, 0, 1));
-    const endDate = new Date(Date.UTC(2100, 11, 31, 23, 59, 59, 999));
-    return this.getSchedulesInRange(userUuid, startDate, endDate);
+    await this.validateUser(userUuid);
+    const currentDate = new Date();
+    const pastDate = new Date(currentDate);
+    pastDate.setFullYear(pastDate.getFullYear() - 1);
+    const futureDate = new Date(currentDate);
+    futureDate.setFullYear(futureDate.getFullYear() + 1);
+    const [regularSchedules, recurringSchedules] = await Promise.all([
+      this.schedulesRepository.find({
+        where: {
+          userUuid,
+          isRecurring: false,
+          startDate: Between(pastDate, futureDate),
+        },
+        relations: ['category'],
+      }),
+      this.findRecurringSchedules(userUuid),
+    ]);
+    const expandedRecurringSchedules = this.expandRecurringSchedules(
+      recurringSchedules,
+      pastDate,
+      futureDate,
+    );
+    const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
+    allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+    return allSchedules.map((schedule) => this.convertToResponseDto(schedule));
   }
 
   /**
