@@ -212,8 +212,14 @@ export class AuthController {
   @ApiResponse({ status: 400, description: '잘못된 요청' })
   @ApiResponse({ status: 401, description: '인증 실패' })
   async signup(@Body() signupDto: BasicSignupDto) {
-    const { phoneNumber, verificationCode, name, email, profileImage } =
-      signupDto;
+    const {
+      phoneNumber,
+      verificationCode,
+      name,
+      email,
+      profileImage,
+      address,
+    } = signupDto;
 
     await this.authService.verifyCode(phoneNumber, verificationCode);
 
@@ -224,6 +230,7 @@ export class AuthController {
       name,
       email,
       profileImage,
+      address,
     );
   }
 

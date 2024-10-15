@@ -101,6 +101,7 @@ export class AuthService {
     name?: string,
     email?: string,
     profileImage?: string,
+    address?: string,
   ): Promise<BasicSignupResponseDto> {
     if (!this.isPhoneNumberVerified(phoneNumber)) {
       throw new BadRequestException('전화번호 인증이 필요합니다.');
@@ -119,6 +120,7 @@ export class AuthService {
       name,
       email,
       profileImage,
+      address,
     });
     await this.userRepository.save(newUser);
 
