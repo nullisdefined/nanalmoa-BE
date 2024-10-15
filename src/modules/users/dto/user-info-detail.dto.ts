@@ -5,7 +5,7 @@ export class UserInfo {
     description: '사용자 UUID',
     example: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
   })
-  uuid: string;
+  userUuid: string;
 
   @ApiProperty({ description: '사용자 이름', example: '홍길동' })
   name: string;
@@ -20,5 +20,5 @@ export class UserInfo {
     description: '사용자 프로필 이미지 URL',
     example: 'https://example.com/profile.jpg',
   })
-  profileImageUrl: string;
+  profileImage: string;
 }
