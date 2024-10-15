@@ -38,7 +38,7 @@ jobs:
           TARGET: /var/www/nestjs-app/nanalmoa-BE
           SCRIPT_AFTER: |
             cd /var/www/nestjs-app/nanalmoa-BE
-            git pull origin main
+            git pull
             npm ci
             npm run build
             pm2 restart nanalmoa
