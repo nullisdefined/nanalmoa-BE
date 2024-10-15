@@ -1,8 +1,5 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateScheduleDto } from './create-schedule.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsNotEmpty,
   IsDate,
   IsString,
   IsBoolean,
@@ -14,7 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
+export class UpdateScheduleDto {
   @ApiProperty({
     description: '일정 시작 날짜 및 시간',
     example: '2024-10-15T00:00:00Z',
@@ -38,7 +35,6 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
   @ApiProperty({
     description: '일정 제목',
     example: '팀 미팅',
-    default: '새로운 일정',
     required: false,
   })
   @IsOptional()
@@ -75,7 +71,6 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
   @ApiProperty({
     description: '일정 카테고리 ID',
     example: 1,
-    default: 7,
     required: false,
   })
   @IsOptional()
@@ -133,7 +128,7 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
 
   @ApiProperty({
     description: '월간 반복 시 반복할 날짜',
-    example: null,
+    example: 15,
     required: false,
   })
   @IsOptional()
@@ -142,7 +137,7 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {
 
   @ApiProperty({
     description: '연간 반복 시 반복할 월 (1-12)',
-    example: null,
+    example: 3,
     required: false,
   })
   @IsOptional()

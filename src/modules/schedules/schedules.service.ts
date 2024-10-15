@@ -284,6 +284,7 @@ export class SchedulesService {
     instanceDate: Date,
     updateType: 'single' | 'future' = 'single',
   ): Promise<ResponseScheduleDto> {
+    // console.log(updateScheduleDto);
     const schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
       relations: ['category'],
@@ -329,6 +330,7 @@ export class SchedulesService {
     schedule: Schedule,
     updateScheduleDto: UpdateScheduleDto,
   ): Promise<ResponseScheduleDto> {
+    // console.log(updateScheduleDto);
     const { categoryId, ...updateData } = updateScheduleDto;
 
     // 제공된 필드만 업데이트
@@ -348,6 +350,7 @@ export class SchedulesService {
 
     // 변경된 일정 저장
     const updatedSchedule = await this.schedulesRepository.save(schedule);
+    // console.log(updatedSchedule);
 
     return this.convertToResponseDto(updatedSchedule);
   }
