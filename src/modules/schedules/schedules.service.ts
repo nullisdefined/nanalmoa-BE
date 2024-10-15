@@ -727,7 +727,7 @@ export class SchedulesService {
   /**
    * GPT 응답을 파싱합니다.
    */
-  private parseGptResponse(response: string): any[] {
+  parseGptResponse(response: string): any[] {
     try {
       return JSON.parse(response);
     } catch (error) {

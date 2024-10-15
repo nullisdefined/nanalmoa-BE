@@ -16,6 +16,6 @@ import { UsersRoutineService } from './users-routine.service';
   ],
   controllers: [UsersController, UsersRoutineController],
   providers: [UsersService, UsersRoutineService],
-  exports: [UsersService],
+  exports: [UsersService, UsersRoutineService],
 })
 export class UsersModule {}

@@ -509,9 +509,12 @@ export class SchedulesController {
   })
   async uploadImageScheduleClova(
     @UploadedFile() file: Express.Multer.File,
+    @Req() req,
   ): Promise<CreateScheduleDto[]> {
-    const ocrResult =
-      await this.ocrTranscriptionService.extractTextFromNaverOCR(file);
-    return await this.schedulesService.processWithGptOCR(ocrResult);
+    const userUuid = req.user.userUuid;
+    return await this.ocrTranscriptionService.processMedicationImage(
+      file,
+      userUuid,
+    );
   }
 }
