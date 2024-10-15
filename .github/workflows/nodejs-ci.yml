@@ -50,4 +50,9 @@ jobs:
             npm install
             npm run build
 
-            pm2 start dist/main.js --name nanalmoa || pm2 restart nanalmoa
+            sudo cat /etc/environment | sudo tee .production.env > /dev/null
+
+            sudo chown $USER:$USER .production.env
+            sudo chmod 600 .production.env
+
+            pm2 start dist/main.js --name nanalmoa --env production || pm2 restart nanalmoa --env production
