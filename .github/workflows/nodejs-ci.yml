@@ -40,28 +40,39 @@ jobs:
             DEPLOY_DIR="/var/www/nestjs-app/nanalmoa-BE"
             BACKUP_DIR="/var/www/nestjs-app/nanalmoa-BE_backup_$(date +%Y%m%d%H%M%S)"
 
+            # 기존 디렉토리 백업
             if [ -d "$DEPLOY_DIR" ]; then
               sudo mv "$DEPLOY_DIR" "$BACKUP_DIR"
             fi
 
+            # 새 디렉토리 생성 및 권한 설정
             sudo mkdir -p "$DEPLOY_DIR"
             sudo chown -R $USER:$USER "$DEPLOY_DIR"
 
+            # 저장소 클론
             git clone https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR"
 
             cd "$DEPLOY_DIR"
 
+            # Node.js 의존성 설치 및 빌드
             npm install
             npm run build
 
+            # 환경 변수 설정
             sudo cat /etc/environment | sudo tee .production.env > /dev/null
             sudo chown $USER:$USER .production.env
             sudo chmod 600 .production.env
 
-            if pm2 list | grep -q "nanalmoa"; then
-              pm2 delete nanalmoa
-            fi
+            # PM2
+            pm2 delete nanalmoa || true
             pm2 start dist/main.js --name nanalmoa --env production
+
+            if pm2 list | grep -q "nanalmoa"; then
+              echo "nanalmoa 프로세스가 성공적으로 시작되었습니다."
+            else
+              echo "오류: nanalmoa 프로세스 시작 실패"
+              exit 1
+            fi
 
             echo "배포가 성공적으로 완료되었습니다."
 
