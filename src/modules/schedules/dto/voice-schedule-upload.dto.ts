@@ -1,8 +1,5 @@
-import { Category } from '@/entities/category.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { CreateScheduleDto } from './create-schedule.dto';
-
 export class VoiceScheduleUploadDto {
   @ApiProperty({
     type: 'file',
@@ -17,14 +14,4 @@ export class VoiceScheduleUploadDto {
   })
   @Type(() => Date)
   currentDateTime: Date;
-}
-
-export class VoiceScheduleResponseDto extends CreateScheduleDto {
-  @ApiProperty({ description: '카테고리 정보' })
-  category: Category;
-
-  constructor(partial: Partial<VoiceScheduleResponseDto> = {}) {
-    super();
-    Object.assign(this, partial);
-  }
 }
