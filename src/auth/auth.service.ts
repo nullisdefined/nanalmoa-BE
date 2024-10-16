@@ -162,7 +162,7 @@ export class AuthService {
       sub: tempUser.userUuid,
       socialProvider: AuthProvider.BASIC,
     };
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '10' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '14d' });
 
     tempAuth.refreshToken = refreshToken;
@@ -270,11 +270,14 @@ export class AuthService {
   private async refreshBasicToken(
     user: User,
   ): Promise<RefreshBasicTokenResponseDto> {
-    const payload = { sub: user.userUuid, phoneNumber: user.phoneNumber };
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get('JWT_BASIC_REFRESH_EXPIRATION'),
-    });
-    return { refreshToken };
+    const accessToken = this.generateAccessToken(user, AuthProvider.BASIC);
+    const refreshToken = this.jwtService.sign(
+      { sub: user.userUuid, phoneNumber: user.phoneNumber },
+      {
+        expiresIn: this.configService.get('JWT_BASIC_REFRESH_EXPIRATION'),
+      },
+    );
+    return { accessToken, refreshToken };
   }
 
   async getNaverToken(code: string): Promise<NaverTokenResponseDto> {
