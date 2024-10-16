@@ -40,21 +40,15 @@ jobs:
             sudo chown -R $USER:$USER /var/www/nestjs-app/nanalmoa-BE
             cd /var/www/nestjs-app/nanalmoa-BE
 
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/nullisdefined/nanalmoa-BE.git .
-            else
-              git reset --hard
-              git pull
-            fi
+            rm -rf ./*
+            git clone https://github.com/nullisdefined/nanalmoa-BE.git .
 
             npm install
             npm run build
 
             sudo cat /etc/environment | sudo tee .production.env > /dev/null
-
             sudo chown $USER:$USER .production.env
             sudo chmod 600 .production.env
 
-            pm2 start dist/main.js --name nanalmoa --env production || pm2 restart nanalmoa --env production
-
-            
+            pm2 delete nanalmoa || true
+            pm2 start dist/main.js --name nanalmoa --env production
