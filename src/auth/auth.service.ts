@@ -145,28 +145,35 @@ export class AuthService {
     phoneNumber: string,
     name?: string,
   ): Promise<BasicSignupResponseDto> {
-    const tempUser = this.userRepository.create({
-      userUuid: uuidv4(),
-      phoneNumber,
-      name: name || '임시 사용자',
-    });
-    await this.userRepository.save(tempUser);
+    let user = await this.userRepository.findOne({ where: { phoneNumber } });
 
-    const tempAuth = this.authRepository.create({
-      userUuid: tempUser.userUuid,
-      authProvider: AuthProvider.BASIC,
-    });
-    await this.authRepository.save(tempAuth);
+    if (!user) {
+      user = this.userRepository.create({
+        userUuid: uuidv4(),
+        phoneNumber,
+        name: name || '임시 사용자',
+      });
+      await this.userRepository.save(user);
+
+      const tempAuth = this.authRepository.create({
+        userUuid: user.userUuid,
+        authProvider: AuthProvider.BASIC,
+      });
+      await this.authRepository.save(tempAuth);
+    }
 
     const payload = {
-      sub: tempUser.userUuid,
+      sub: user.userUuid,
       socialProvider: AuthProvider.BASIC,
     };
     const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '14d' });
 
-    tempAuth.refreshToken = refreshToken;
-    await this.authRepository.save(tempAuth);
+    const auth = await this.authRepository.findOne({
+      where: { userUuid: user.userUuid, authProvider: AuthProvider.BASIC },
+    });
+    auth.refreshToken = refreshToken;
+    await this.authRepository.save(auth);
 
     return {
       accessToken,
