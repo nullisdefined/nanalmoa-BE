@@ -55,20 +55,24 @@ jobs:
             cd "$DEPLOY_DIR"
 
             # Node.js 의존성 설치 및 빌드
-            npm install
+            npm ci
             npm run build
 
-            # 환경 변수 설정
-            sudo cat /etc/environment | sudo tee .production.env > /dev/null
+            # 환경 변수 설정 (따옴표 제거)
+            sudo grep -v '^#' /etc/environment | sed 's/"\([^"]*\)"/\1/g' | sudo tee .production.env > /dev/null
             sudo chown $USER:$USER .production.env
             sudo chmod 600 .production.env
 
-            # PM2
-            pm2 delete nanalmoa || true
+            # PM2 프로세스 관리
+            if pm2 list | grep -q "nanalmoa"; then
+              pm2 delete nanalmoa
+            fi
             pm2 start dist/main.js --name nanalmoa --env production
 
+            # PM2 프로세스 확인
             if pm2 list | grep -q "nanalmoa"; then
               echo "nanalmoa 프로세스가 성공적으로 시작되었습니다."
+              pm2 save
             else
               echo "오류: nanalmoa 프로세스 시작 실패"
               exit 1
@@ -76,4 +80,7 @@ jobs:
 
             echo "배포가 성공적으로 완료되었습니다."
 
-            sudo rm -rf "$BACKUP_DIR"
+            # 백업 디렉토리 정리
+            if [ -d "$BACKUP_DIR" ]; then
+              sudo rm -rf "$BACKUP_DIR"
+            fi
