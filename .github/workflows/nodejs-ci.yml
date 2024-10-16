@@ -56,3 +56,5 @@ jobs:
             sudo chmod 600 .production.env
 
             pm2 start dist/main.js --name nanalmoa --env production || pm2 restart nanalmoa --env production
+
+            
