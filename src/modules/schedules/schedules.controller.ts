@@ -419,7 +419,6 @@ export class SchedulesController {
     @Query('updateType') updateType: 'single' | 'future' = 'single',
   ): Promise<ResponseScheduleDto> {
     const userUuid = req.user.userUuid;
-    updateScheduleDto.categoryId = updateScheduleDto.categoryId || 7;
     return await this.schedulesService.updateSchedule(
       userUuid,
       id,
