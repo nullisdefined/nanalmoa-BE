@@ -67,6 +67,8 @@ export class UsersService {
   ): 'phoneNumber' | 'name' | 'email' {
     if (/^\d{10,11}$/.test(keyword)) {
       return 'phoneNumber';
+    } else if (/^(\d{2,3})-?(\d{3,4})-?(\d{4})$/.test(keyword)) {
+      return 'phoneNumber';
     } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(keyword)) {
       return 'email';
     } else {

@@ -69,7 +69,7 @@ export class UsersController {
         keyword: {
           type: 'string',
           description: '검색 키워드 (전화번호, 이메일, 또는 이름)',
-          example: 'jw03265@naver.com',
+          example: 'user@example.com',
         },
       },
     },
