@@ -162,7 +162,7 @@ export class AuthService {
       sub: tempUser.userUuid,
       socialProvider: AuthProvider.BASIC,
     };
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '10' });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '14d' });
 
     tempAuth.refreshToken = refreshToken;
