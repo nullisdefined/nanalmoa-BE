@@ -10,7 +10,10 @@ import { Schedule } from '../../entities/schedule.entity';
 import { Category } from '@/entities/category.entity';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
-import { ResponseScheduleDto } from './dto/response-schedule.dto';
+import {
+  ResponseGroupInfo,
+  ResponseScheduleDto,
+} from './dto/response-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
 import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
 import { ConfigService } from '@nestjs/config';
@@ -71,7 +74,17 @@ export class SchedulesService {
       endDate,
     );
 
-    const allSchedules = [...regularSchedules, ...expandedRecurringSchedules];
+    const sharedGroupSchedules = await this.findSharedGroupSchedules(
+      userUuid,
+      startDate,
+      endDate,
+    );
+
+    const allSchedules = [
+      ...regularSchedules,
+      ...expandedRecurringSchedules,
+      ...sharedGroupSchedules,
+    ];
     allSchedules.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
     const convertedSchedules = await Promise.all(
@@ -79,6 +92,33 @@ export class SchedulesService {
     );
 
     return convertedSchedules;
+  }
+
+  // 공유된 일정을 파악하는 함수.
+  private async findSharedGroupSchedules(
+    userUuid: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Schedule[]> {
+    return this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .innerJoin('schedule.groupSchedules', 'groupSchedule')
+      .where('groupSchedule.userUuid = :userUuid', { userUuid })
+      .andWhere('schedule.startDate <= :endDate', { endDate })
+      .andWhere('schedule.endDate >= :startDate', { startDate })
+      .getMany();
+  }
+
+  private async findSharedGroupSchedulesByScheduleId(
+    userUuid: string,
+    scheduleId: number,
+  ): Promise<Schedule> {
+    return this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .innerJoin('schedule.groupSchedules', 'groupSchedule')
+      .where('groupSchedule.userUuid = :userUuid', { userUuid })
+      .andWhere('schedule.scheduleId = :scheduleId', { scheduleId })
+      .getOne();
   }
 
   /**
@@ -292,16 +332,24 @@ export class SchedulesService {
     updateType: 'single' | 'future' = 'single',
   ): Promise<ResponseScheduleDto> {
     // console.log(updateScheduleDto);
-    const schedule = await this.schedulesRepository.findOne({
+    let schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
       relations: ['category'],
     });
-
+    // 사용자가 생성한 일정이 아니라면 공유 받은 일정인지 찾음
+    if (!schedule) {
+      schedule = await this.findSharedGroupSchedulesByScheduleId(
+        userUuid,
+        scheduleId,
+      );
+    }
     if (!schedule) {
       throw new NotFoundException(
         `해당 ID : ${scheduleId}를 가진 일정을 찾을 수 없습니다.`,
       );
     }
+
+    const isCreator = schedule.userUuid === userUuid;
 
     if (schedule.isRecurring && instanceDate) {
       const isValidDate = this.isOccurrenceDate(schedule, instanceDate);
@@ -312,16 +360,18 @@ export class SchedulesService {
       }
     }
 
+    let updatedSchedule;
+
     if (schedule.isRecurring) {
       // 반복 일정 수정
       if (updateType === 'single') {
-        return this.updateSingleInstance(
+        updatedSchedule = await this.updateSingleInstance(
           schedule,
           updateScheduleDto,
           instanceDate,
         );
       } else {
-        return this.updateFutureInstances(
+        updatedSchedule = await this.updateFutureInstances(
           schedule,
           updateScheduleDto,
           instanceDate,
@@ -329,28 +379,56 @@ export class SchedulesService {
       }
     } else {
       // 일반 일정 수정
-      const { categoryId, ...updateData } = updateScheduleDto;
-
-      // 제공된 필드만 업데이트
-      Object.entries(updateData).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          schedule[key] = value;
-        }
-      });
-
-      // 카테고리 ID가 제공된 경우에만 카테고리 업데이트
-      if (categoryId !== undefined) {
-        const newCategory = await this.getCategoryById(categoryId);
-        if (newCategory) {
-          schedule.category = newCategory;
-        }
-      }
-
-      // 변경된 일정 저장
-      const updatedSchedule = await this.schedulesRepository.save(schedule);
-
-      return this.convertToResponseDto(updatedSchedule);
+      updatedSchedule = await this.updateNonRecurringSchedule(
+        schedule,
+        updateScheduleDto,
+      );
     }
+    // 그룹 정보 업데이트 (일정 생성자만 가능)
+    if (isCreator) {
+      if (updateScheduleDto.addGroupInfo) {
+        await this.groupService.linkScheduleToGroupsAndUsers(
+          updatedSchedule,
+          updateScheduleDto.addGroupInfo,
+        );
+      }
+      if (updateScheduleDto.deleteGroupInfo) {
+        await this.groupService.removeGroupMembersFromSchedule(
+          updatedSchedule.scheduleId,
+          updateScheduleDto.deleteGroupInfo,
+        );
+      }
+    }
+
+    return this.convertToResponseDto(updatedSchedule);
+  }
+
+  private async updateNonRecurringSchedule(
+    schedule: Schedule,
+    updateScheduleDto: UpdateScheduleDto,
+  ): Promise<ResponseScheduleDto> {
+    // console.log(updateScheduleDto);
+    const { categoryId, ...updateData } = updateScheduleDto;
+
+    // 제공된 필드만 업데이트
+    Object.entries(updateData).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        schedule[key] = value;
+      }
+    });
+
+    // 카테고리 ID가 제공된 경우에만 카테고리 업데이트
+    if (categoryId !== undefined) {
+      const newCategory = await this.getCategoryById(categoryId);
+      if (newCategory) {
+        schedule.category = newCategory;
+      }
+    }
+
+    // 변경된 일정 저장
+    const updatedSchedule = await this.schedulesRepository.save(schedule);
+
+    return this.convertToResponseDto(updatedSchedule);
   }
 
   /**
@@ -514,23 +592,27 @@ export class SchedulesService {
     instanceDate: string,
     deleteType: 'single' | 'future' = 'single',
   ): Promise<void> {
-    const schedule = await this.schedulesRepository.findOne({
+    // 일단 해당 ID로 사용자가 생성한 일정인지 찾음
+    let schedule = await this.schedulesRepository.findOne({
       where: { scheduleId, userUuid },
     });
+    let isCreator = true;
+
+    // 사용자가 생성한 일정이 아니라면 공유 받은 일정인지 찾음
+    if (!schedule) {
+      const sharedSchedules = await this.findSharedGroupSchedulesByScheduleId(
+        userUuid,
+        scheduleId,
+      );
+      schedule = sharedSchedules;
+      isCreator = false;
+    }
 
     if (!schedule) {
       throw new NotFoundException(
         `ID가 ${scheduleId}인 일정을 찾을 수 없습니다.`,
       );
     }
-
-    // const groupSchedule = await this.groupScheduleRepository.findOne({
-    //   where: { schedule: { scheduleId }, user: { userUuid } },
-    // });
-
-    // const isGroupSchedule = !!groupSchedule;
-    // const isCreator = schedule.userUuid === userUuid;
-
     const targetDate = new Date(instanceDate);
 
     if (schedule.isRecurring) {
@@ -540,15 +622,39 @@ export class SchedulesService {
         );
       }
 
-      if (deleteType === 'future') {
-        await this.deleteFutureInstances(schedule, targetDate);
+      if (isCreator) {
+        if (deleteType === 'future') {
+          await this.deleteFutureInstances(schedule, targetDate);
+        } else {
+          await this.deleteSingleInstance(schedule, targetDate);
+        }
       } else {
-        await this.deleteSingleInstance(schedule, targetDate);
+        // 공유 받은 사용자라면 해당 날짜 이후의 그룹 일정에서만 제거
+        await this.removeUserFromFutureGroupSchedules(userUuid, schedule);
       }
     } else {
-      // 반복되지 않는 일정 삭제
-      await this.schedulesRepository.remove(schedule);
+      if (isCreator) {
+        // 일정 생성자인 경우 일정과 관련된 모든 그룹 일정 삭제
+        await this.groupScheduleRepository.delete({ schedule: { scheduleId } });
+        await this.schedulesRepository.remove(schedule);
+      } else {
+        // 공유 받은 사용자인 경우 해당 사용자의 그룹 일정만 삭제
+        await this.groupScheduleRepository.delete({
+          schedule: { scheduleId },
+          userUuid,
+        });
+      }
     }
+  }
+
+  private async removeUserFromFutureGroupSchedules(
+    userUuid: string,
+    schedule: Schedule,
+  ): Promise<void> {
+    await this.groupScheduleRepository.delete({
+      schedule: { scheduleId: schedule.scheduleId },
+      userUuid,
+    });
   }
 
   /**
@@ -746,24 +852,27 @@ export class SchedulesService {
       relations: ['group', 'user'],
     });
 
-    const groupInfo = await Promise.all(
-      groupSchedules.map(async (groupSchedule) => {
-        const user = groupSchedule.user;
-        return {
-          groupId: groupSchedule.group.groupId,
-          groupName: groupSchedule.group.groupName,
-          users: [
-            {
-              uuid: user.userUuid,
-              name: user.name,
-              email: user.email,
-              phoneNumber: user.phoneNumber,
-              profileImageUrl: user.profileImage,
-            },
-          ],
-        };
-      }),
-    );
+    const groupMap = new Map<number, ResponseGroupInfo>();
+
+    groupSchedules.forEach((groupSchedule) => {
+      const { group, user } = groupSchedule;
+      if (!groupMap.has(group.groupId)) {
+        groupMap.set(group.groupId, {
+          groupId: group.groupId,
+          groupName: group.groupName,
+          users: [],
+        });
+      }
+      groupMap.get(group.groupId).users.push({
+        userUuid: user.userUuid,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        profileImage: user.profileImage,
+      });
+    });
+
+    const groupInfo = Array.from(groupMap.values());
 
     return new ResponseScheduleDto({
       scheduleId: schedule.scheduleId,
