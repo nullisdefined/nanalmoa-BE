@@ -396,4 +396,45 @@ export class AuthController {
   ) {
     return this.authService.verifyEmailCode(email, code);
   }
+
+  @Post('token/temporary')
+  @ApiOperation({ summary: '임시 액세스 토큰 발급' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: '사용자 이름',
+        },
+        phoneNumber: {
+          type: 'string',
+          description: '사용자 전화번호',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '액세스 토큰 발급 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        accessToken: {
+          type: 'string',
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        },
+      },
+    },
+  })
+  async getAccessToken(
+    @Body('name') name: string,
+    @Body('phoneNumber') phoneNumber: string,
+  ) {
+    const tokens = await this.authService.signupTemporaryUser(
+      phoneNumber,
+      name,
+    );
+    return tokens;
+  }
 }

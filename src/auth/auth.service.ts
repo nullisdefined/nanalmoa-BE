@@ -141,6 +141,39 @@ export class AuthService {
     };
   }
 
+  async signupTemporaryUser(
+    phoneNumber: string,
+    name?: string,
+  ): Promise<BasicSignupResponseDto> {
+    const tempUser = this.userRepository.create({
+      userUuid: uuidv4(),
+      phoneNumber,
+      name: name || '임시 사용자',
+    });
+    await this.userRepository.save(tempUser);
+
+    const tempAuth = this.authRepository.create({
+      userUuid: tempUser.userUuid,
+      authProvider: AuthProvider.BASIC,
+    });
+    await this.authRepository.save(tempAuth);
+
+    const payload = {
+      sub: tempUser.userUuid,
+      socialProvider: AuthProvider.BASIC,
+    };
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '14d' });
+
+    tempAuth.refreshToken = refreshToken;
+    await this.authRepository.save(tempAuth);
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
   async validateUserByPhoneNumber(phoneNumber: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { phoneNumber } });
     if (!user) {
