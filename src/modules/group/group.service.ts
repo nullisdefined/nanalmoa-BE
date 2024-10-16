@@ -248,7 +248,7 @@ export class GroupService {
     const invitations = await this.groupInvitationRepository.find({
       where: { inviterUuid: userUuid },
       relations: ['group'],
-      order: { createdAt: 'DESC' },
+      order: { updatedAt: 'DESC' },
     });
 
     return invitations.map((invitation) => ({
@@ -266,7 +266,7 @@ export class GroupService {
     const invitations = await this.groupInvitationRepository.find({
       where: { inviteeUuid: userUuid },
       relations: ['group'],
-      order: { createdAt: 'DESC' },
+      order: { updatedAt: 'DESC' },
     });
 
     return invitations.map((invitation) => ({
@@ -282,6 +282,7 @@ export class GroupService {
     const invitation = await this.groupInvitationRepository.findOne({
       where: { groupInvitationId: invitationId },
       relations: ['group'],
+      order: { updatedAt: 'DESC' },
     });
 
     if (!invitation) {
