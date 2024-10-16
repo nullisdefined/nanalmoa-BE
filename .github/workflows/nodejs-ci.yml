@@ -36,12 +36,20 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo mkdir -p /var/www/nestjs-app/nanalmoa-BE
-            sudo chown -R $USER:$USER /var/www/nestjs-app/nanalmoa-BE
-            cd /var/www/nestjs-app/nanalmoa-BE
+            set -e
+            DEPLOY_DIR="/var/www/nestjs-app/nanalmoa-BE"
+            BACKUP_DIR="/var/www/nestjs-app/nanalmoa-BE_backup_$(date +%Y%m%d%H%M%S)"
 
-            rm -rf ./*
-            git clone https://github.com/nullisdefined/nanalmoa-BE.git .
+            if [ -d "$DEPLOY_DIR" ]; then
+              sudo mv "$DEPLOY_DIR" "$BACKUP_DIR"
+            fi
+
+            sudo mkdir -p "$DEPLOY_DIR"
+            sudo chown -R $USER:$USER "$DEPLOY_DIR"
+
+            git clone https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR"
+
+            cd "$DEPLOY_DIR"
 
             npm install
             npm run build
@@ -50,5 +58,11 @@ jobs:
             sudo chown $USER:$USER .production.env
             sudo chmod 600 .production.env
 
-            pm2 delete nanalmoa || true
+            if pm2 list | grep -q "nanalmoa"; then
+              pm2 delete nanalmoa
+            fi
             pm2 start dist/main.js --name nanalmoa --env production
+
+            echo "배포가 성공적으로 완료되었습니다."
+
+            sudo rm -rf "$BACKUP_DIR"
