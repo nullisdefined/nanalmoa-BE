@@ -68,6 +68,7 @@ export class ManagerService {
     }
     const invitation = await this.managerInvitationRepository.findOne({
       where: { managerInvitationId: id },
+      order: { updatedAt: 'DESC' },
     });
     if (!invitation) {
       throw new NotFoundException(`ID가 ${id}인 초대장을 찾을 수 없습니다.`);

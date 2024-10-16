@@ -15,7 +15,6 @@ import {
   ResponseScheduleDto,
 } from './dto/response-schedule.dto';
 import { WeekQueryDto } from './dto/week-query-schedule.dto';
-import { VoiceScheduleResponseDto } from './dto/voice-schedule-upload.dto';
 import { ConfigService } from '@nestjs/config';
 import { VoiceTranscriptionService } from './voice-transcription.service';
 import { UsersService } from '../users/users.service';
@@ -915,7 +914,6 @@ export class SchedulesService {
   private async processWithGpt(
     transcriptionResult: any,
     currentDateTime: string,
-    userUuid: string,
   ): Promise<CreateScheduleDto[]> {
     const formattedDate = await this.formatDateToYYYYMMDDHHMMSS(
       new Date(currentDateTime),
@@ -927,7 +925,7 @@ export class SchedulesService {
         {
           role: 'system',
           content:
-            'You are an AI assistant that extracts startDate, endDate, category, intent, and place information from conversations. 카테고리[병원, 복약, 가족, 종교, 운동, 경조사, 기타]',
+            'You are an AI assistant that extracts startDate, endDate, title, place, isAllDay, and category information from conversations. 카테고리[병원, 복약, 가족, 종교, 운동, 경조사, 기타]',
         },
         {
           role: 'user',
@@ -935,12 +933,11 @@ export class SchedulesService {
         },
       ],
     });
-
     const gptResponseContent = gptResponse.choices[0].message.content;
-    return this.convertGptResponseToCreateDto(
-      this.parseGptResponse(gptResponseContent),
-      userUuid,
-    );
+    console.log(gptResponseContent);
+
+    const parsedResponse = this.parseGptResponse(gptResponseContent);
+    return this.convertGptResponseToCreateScheduleDto(parsedResponse);
   }
 
   /**
@@ -953,7 +950,7 @@ export class SchedulesService {
         {
           role: 'system',
           content:
-            'You are an AI assistant that extracts intent, tablets, times, and days information from conversations.',
+            'You are an AI assistant that extracts startDate, endDate, category, intent, isAllDay and place information from conversations. 카테고리[병원, 복약, 가족, 종교, 운동, 경조사, 기타]',
         },
         {
           role: 'user',
@@ -981,28 +978,24 @@ export class SchedulesService {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
-  /**
-   * GPT 응답을 CreateScheduleDto로 변환합니다.
-   */
-  private async convertGptResponseToCreateDto(
+  private async convertGptResponseToCreateScheduleDto(
     gptEvents: any[],
-    userUuid: string,
-  ): Promise<VoiceScheduleResponseDto[]> {
+  ): Promise<CreateScheduleDto[]> {
     const allCategories = await this.categoryRepository.find();
-
     const categoryMap = allCategories.reduce((acc, category) => {
-      acc[category.categoryName] = category;
+      acc[category.categoryName] = category.categoryId;
       return acc;
     }, {});
-
+    console.log(gptEvents);
     return gptEvents.map((event) => {
-      const dto = new VoiceScheduleResponseDto();
+      const dto = new CreateScheduleDto();
       dto.startDate = new Date(event.startDate);
       dto.endDate = new Date(event.endDate);
-      dto.title = event.intent;
+      dto.title = event.intent || event.title || '새로운 일정';
       dto.place = event.place || '';
-      dto.isAllDay = event.isAllDay;
-      dto.category = categoryMap[event.category] || categoryMap['기타'];
+      dto.isAllDay = event.isAllDay || false;
+      dto.categoryId = categoryMap[event.category] || 7; // 7은 '기타' 카테고리의 ID로 가정
+      dto.isRecurring = false;
       return dto;
     });
   }
@@ -1018,7 +1011,7 @@ export class SchedulesService {
     await this.validateUser(userUuid);
     const transcribe =
       await this.voiceTranscriptionService.RTZRTranscribeResult(file);
-    return this.processWithGpt(transcribe, currentDateTime, userUuid);
+    return this.processWithGpt(transcribe, currentDateTime);
   }
 
   /**
@@ -1032,6 +1025,6 @@ export class SchedulesService {
     await this.validateUser(userUuid);
     const transcribe =
       await this.voiceTranscriptionService.whisperTranscribeResult(file);
-    return this.processWithGpt(transcribe, currentDateTime, userUuid);
+    return this.processWithGpt(transcribe, currentDateTime);
   }
 }

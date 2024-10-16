@@ -90,7 +90,7 @@ export class InvitationsService {
     ]);
 
     combinedInvitations.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
     );
 
     return combinedInvitations;
