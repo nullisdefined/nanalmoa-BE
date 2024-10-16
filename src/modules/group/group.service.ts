@@ -251,11 +251,29 @@ export class GroupService {
       order: { updatedAt: 'DESC' },
     });
 
-    return invitations.map((invitation) => ({
+    const invitationsWithUserInfo = await Promise.all(
+      invitations.map(async (invitation) => {
+        const [inviter, invitee] = await Promise.all([
+          this.usersService.findOne(invitation.inviterUuid),
+          this.usersService.findOne(invitation.inviteeUuid),
+        ]);
+
+        return {
+          ...invitation,
+          inviterName: inviter.name,
+          inviteeName: invitee.name,
+        };
+      }),
+    );
+
+    return invitationsWithUserInfo.map((invitation) => ({
       invitationId: invitation.groupInvitationId,
       groupId: invitation.group.groupId,
+      groupName: invitation.group.groupName,
       inviterUuid: invitation.inviterUuid,
+      inviterName: invitation.inviterName,
       inviteeUuid: invitation.inviteeUuid,
+      inviteeName: invitation.inviteeName,
       status: invitation.status,
     }));
   }
@@ -269,11 +287,29 @@ export class GroupService {
       order: { updatedAt: 'DESC' },
     });
 
-    return invitations.map((invitation) => ({
+    const invitationsWithUserInfo = await Promise.all(
+      invitations.map(async (invitation) => {
+        const [inviter, invitee] = await Promise.all([
+          this.usersService.findOne(invitation.inviterUuid),
+          this.usersService.findOne(invitation.inviteeUuid),
+        ]);
+
+        return {
+          ...invitation,
+          inviterName: inviter.name,
+          inviteeName: invitee.name,
+        };
+      }),
+    );
+
+    return invitationsWithUserInfo.map((invitation) => ({
       invitationId: invitation.groupInvitationId,
       groupId: invitation.group.groupId,
+      groupName: invitation.group.groupName,
       inviterUuid: invitation.inviterUuid,
+      inviterName: invitation.inviterName,
       inviteeUuid: invitation.inviteeUuid,
+      inviteeName: invitation.inviteeName,
       status: invitation.status,
     }));
   }
