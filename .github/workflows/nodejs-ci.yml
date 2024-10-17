@@ -46,7 +46,7 @@ jobs:
 
           # 새 디렉토리 생성 및 권한 설정
           sudo mkdir -p "$DEPLOY_DIR"
-          sudo chmod 777 $USER:$USER "$DEPLOY_DIR"
+          sudo chmod 777 "$DEPLOY_DIR"
 
           # 저장소 클론
           git clone https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR"
