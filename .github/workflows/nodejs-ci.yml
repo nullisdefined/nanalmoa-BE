@@ -36,18 +36,41 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo mkdir -p /var/www/nestjs-app/nanalmoa-BE
-            sudo chown -R $USER:$USER /var/www/nestjs-app/nanalmoa-BE
-            cd /var/www/nestjs-app/nanalmoa-BE
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/nullisdefined/nanalmoa-BE.git .
-            else
-              git reset --hard
-              git pull
+            set -e
+            DEPLOY_DIR="/var/www/nestjs-app/nanalmoa-BE"
+            BACKUP_DIR="/var/www/nestjs-app/nanalmoa-BE_backup_$(date +%Y%m%d%H%M%S)"
+            # 기존 디렉토리 백업
+            if [ -d "$DEPLOY_DIR" ]; then
+              sudo mv "$DEPLOY_DIR" "$BACKUP_DIR"
             fi
-            npm install
+            # 새 디렉토리 생성 및 권한 설정
+            sudo mkdir -p "$DEPLOY_DIR"
+            sudo chown -R $USER:$USER "$DEPLOY_DIR"
+            # 저장소 클론
+            git clone https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+            # Node.js 의존성 설치 및 빌드
+            npm ci
             npm run build
-            sudo cat /etc/environment | sudo tee .production.env > /dev/null
+            # 환경 변수 설정 (따옴표 제거)
+            sudo grep -v '^#' /etc/environment | sed 's/"\([^"]*\)"/\1/g' | sudo tee .production.env > /dev/null
             sudo chown $USER:$USER .production.env
             sudo chmod 600 .production.env
-            pm2 start dist/main.js --name nanalmoa --env production || pm2 restart nanalmoa --env production
+            # PM2 프로세스 관리
+            if pm2 list | grep -q "nanalmoa"; then
+              pm2 delete nanalmoa
+            fi
+            pm2 start dist/main.js --name nanalmoa --env production
+            # PM2 프로세스 확인
+            if pm2 list | grep -q "nanalmoa"; then
+              echo "nanalmoa 프로세스가 성공적으로 시작되었습니다."
+              pm2 save
+            else
+              echo "오류: nanalmoa 프로세스 시작 실패"
+              exit 1
+            fi
+            echo "배포가 성공적으로 완료되었습니다."
+            # 백업 디렉토리 정리
+            if [ -d "$BACKUP_DIR" ]; then
+              sudo rm -rf "$BACKUP_DIR"
+            fi
