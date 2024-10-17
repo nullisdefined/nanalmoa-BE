@@ -5,6 +5,7 @@ import { lastValueFrom } from 'rxjs';
 import * as jwt from 'jsonwebtoken';
 import FormData from 'form-data';
 import OpenAI from 'openai';
+import { Multer } from 'multer';
 @Injectable()
 export class VoiceTranscriptionService {
   private openai: OpenAI;

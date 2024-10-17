@@ -33,6 +33,7 @@ import { OCRTranscriptionService } from './OCR-transcription.service';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { ManagerService } from '../manager/manager.service';
+import { Multer } from 'multer';
 
 @ApiTags('Schedules')
 @UseGuards(AuthGuard('jwt'))

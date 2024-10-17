@@ -8,6 +8,7 @@ import { SchedulesService } from './schedules.service';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UsersRoutineService } from '../users/users-routine.service';
 import { UserRoutineResponseDto } from '../users/dto/response-user-routine.dto';
+import { Multer } from 'multer';
 
 @Injectable()
 export class OCRTranscriptionService {

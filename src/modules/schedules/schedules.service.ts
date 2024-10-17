@@ -21,6 +21,7 @@ import { UsersService } from '../users/users.service';
 import OpenAI from 'openai';
 import { GroupService } from '../group/group.service';
 import { GroupSchedule } from '@/entities/group-schedule.entity';
+import { Multer } from 'multer';
 
 @Injectable()
 export class SchedulesService {
