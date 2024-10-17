@@ -21,6 +21,7 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run build --if-present
+    - run: npm test
 
   deploy:
     needs: build
@@ -39,70 +40,87 @@ jobs:
           DEPLOY_DIR="/var/www/nestjs-app/nanalmoa-BE"
           BACKUP_DIR="/var/www/nestjs-app/nanalmoa-BE_backup_$(date +%Y%m%d%H%M%S)"
 
-          # 시스템 정보 출력
           echo "=== System Information ==="
           uname -a
           df -h
           free -m
 
-          # Git 버전 확인
+          echo "=== Git Version ==="
           git --version
 
-          # 기존 디렉토리 백업
-          if [ -d "$DEPLOY_DIR" ]; then
-            sudo mv "$DEPLOY_DIR" "$BACKUP_DIR"
-          fi
+          echo "=== Cleaning up disk space ==="
+          sudo apt clean
+          sudo journalctl --vacuum-time=3d
+          sudo rm -rf /tmp/*
 
-          # 새 디렉토리 생성 및 권한 설정
-          sudo mkdir -p "$DEPLOY_DIR"
-          sudo chown -R $USER:$USER "$DEPLOY_DIR"
-
-          # 네트워크 연결 테스트
           echo "=== Network Connectivity Test ==="
           ping -c 4 github.com
           curl -I https://github.com
 
-          # 저장소 클론 (verbose 모드 및 shallow clone 사용)
+          echo "=== Configuring Git ==="
+          git config --global http.lowSpeedLimit 1000
+          git config --global http.lowSpeedTime 300
+          git config --global http.postBuffer 524288000
+
+          echo "=== Backing up existing directory ==="
+          if [ -d "$DEPLOY_DIR" ]; then
+            sudo mv "$DEPLOY_DIR" "$BACKUP_DIR"
+          fi
+
+          echo "=== Creating new directory ==="
+          sudo mkdir -p "$DEPLOY_DIR"
+          sudo chown -R $USER:$USER "$DEPLOY_DIR"
+
           echo "=== Cloning Repository ==="
-          if ! GIT_TRACE=1 git clone --verbose --depth 1 https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR" 2>&1 | tee /tmp/git_clone_output.log; then
-            echo "Git clone 실패. 오류 메시지:"
+          if ! GIT_TRACE=1 git clone --verbose --depth 1 --single-branch https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR" 2>&1 | tee /tmp/git_clone_output.log; then
+            echo "Git clone failed. Error message:"
             cat /tmp/git_clone_output.log
             exit 1
           fi
+
           cd "$DEPLOY_DIR"
 
-          # Git 설정 확인
           echo "=== Git Configuration ==="
           git config --list
 
-          # Node.js 의존성 설치 및 빌드
-          npm ci
-          npm install -g @nestjs/cli
-          npm run build
+          echo "=== Clearing npm cache ==="
+          npm cache clean --force
 
-          # 환경 변수 설정 (따옴표 제거)
+          echo "=== Installing dependencies ==="
+          if ! npm install 2>&1 | tee /tmp/npm_install_output.log; then
+            echo "npm install failed. Error message:"
+            cat /tmp/npm_install_output.log
+            exit 1
+          fi
+
+          echo "=== Building the application ==="
+          if ! npm run build 2>&1 | tee /tmp/npm_build_output.log; then
+            echo "npm build failed. Error message:"
+            cat /tmp/npm_build_output.log
+            exit 1
+          fi
+
+          echo "=== Setting up environment variables ==="
           sudo grep -v '^#' /etc/environment | sed 's/"\([^"]*\)"/\1/g' | sudo tee .production.env > /dev/null
           sudo chown $USER:$USER .production.env
           sudo chmod 600 .production.env
 
-          # PM2 프로세스 관리
+          echo "=== Managing PM2 process ==="
           if pm2 list | grep -q "nanalmoa"; then
             pm2 delete nanalmoa
           fi
-          pm2 start dist/main.js --name nanalmoa --env production
-
-          # PM2 프로세스 확인
-          if pm2 list | grep -q "nanalmoa"; then
-            echo "nanalmoa 프로세스가 성공적으로 시작되었습니다."
-            pm2 save
-          else
-            echo "오류: nanalmoa 프로세스 시작 실패"
+          if ! pm2 start dist/main.js --name nanalmoa --env production; then
+            echo "Failed to start PM2 process"
             exit 1
           fi
 
-          echo "배포가 성공적으로 완료되었습니다."
+          echo "=== Saving PM2 process list ==="
+          pm2 save
 
-          # 백업 디렉토리 정리
+          echo "=== Cleaning up backup ==="
           if [ -d "$BACKUP_DIR" ]; then
             sudo rm -rf "$BACKUP_DIR"
           fi
+
+          echo "=== Deployment completed successfully ==="
+        timeout: 30m
