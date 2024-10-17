@@ -49,8 +49,9 @@ jobs:
           sudo chmod 777 "$DEPLOY_DIR"
 
           # 저장소 클론
-          git clone https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR"
           cd "$DEPLOY_DIR"
+          git clone https://github.com/nullisdefined/nanalmoa-BE.git
+          
 
           # Node.js 의존성 설치 및 빌드
           npm ci
