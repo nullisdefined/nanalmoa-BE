@@ -46,12 +46,15 @@ jobs:
 
           # 새 디렉토리 생성 및 권한 설정
           sudo mkdir -p "$DEPLOY_DIR"
-          sudo chmod 777 "$DEPLOY_DIR"
+          sudo chown -R $USER:$USER "$DEPLOY_DIR"
 
-          # 저장소 클론
+          # 저장소 클론 (verbose 모드 추가 및 오류 처리)
+          if ! git clone --verbose https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR"; then
+            echo "Git clone 실패. 오류 메시지:"
+            cat /tmp/git_clone_error.log
+            exit 1
+          fi
           cd "$DEPLOY_DIR"
-          git clone https://github.com/nullisdefined/nanalmoa-BE.git
-          
 
           # Node.js 의존성 설치 및 빌드
           npm ci
@@ -61,7 +64,7 @@ jobs:
           # 환경 변수 설정 (따옴표 제거)
           sudo grep -v '^#' /etc/environment | sed 's/"\([^"]*\)"/\1/g' | sudo tee .production.env > /dev/null
           sudo chown $USER:$USER .production.env
-          sudo chmod 777 .production.env
+          sudo chmod 600 .production.env
 
           # PM2 프로세스 관리
           if pm2 list | grep -q "nanalmoa"; then
