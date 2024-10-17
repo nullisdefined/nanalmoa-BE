@@ -422,7 +422,7 @@ export class AuthService {
       throw new UnauthorizedException('지원하지 않는 소셜 프로바이더입니다.');
     }
 
-    let userAuth = await this.authRepository.findOne({
+    let auth = await this.authRepository.findOne({
       where: {
         oauthId: oauthId,
         authProvider: provider,
@@ -430,11 +430,11 @@ export class AuthService {
       relations: ['user'],
     });
 
-    if (userAuth) {
+    if (auth) {
       // 기존 사용자인 경우, 리프레시 토큰만 업데이트
-      userAuth.refreshToken = refreshToken;
-      await this.authRepository.save(userAuth);
-      return userAuth.user;
+      auth.refreshToken = refreshToken;
+      await this.authRepository.save(auth);
+      return auth.user;
     } else {
       // 새 사용자 등록
       const newUser = this.userRepository.create({
@@ -445,16 +445,56 @@ export class AuthService {
       });
       await this.userRepository.save(newUser);
 
-      const newUserAuth = this.authRepository.create({
+      const newAuth = this.authRepository.create({
         user: newUser,
+        userUuid: newUser.userUuid,
         oauthId: oauthId,
         authProvider: provider,
         refreshToken: refreshToken,
       });
-      await this.authRepository.save(newUserAuth);
+      await this.authRepository.save(newAuth);
 
       return newUser;
     }
+  }
+
+  async findUserBySocialId(
+    oauthId: string,
+    provider: AuthProvider,
+  ): Promise<User | null> {
+    const auth = await this.authRepository.findOne({
+      where: {
+        oauthId,
+        authProvider: provider,
+      },
+      relations: ['user'],
+    });
+    return auth ? auth.user : null;
+  }
+
+  async createSocialUser(
+    socialUser: any,
+    refreshToken: string,
+    provider: AuthProvider,
+  ): Promise<User> {
+    const newUser = this.userRepository.create({
+      userUuid: uuidv4(),
+      name: socialUser.name,
+      email: socialUser.email,
+      profileImage: socialUser.profileImage,
+    });
+    await this.userRepository.save(newUser);
+
+    const newAuth = this.authRepository.create({
+      user: newUser,
+      userUuid: newUser.userUuid,
+      oauthId: socialUser.id,
+      authProvider: provider,
+      refreshToken: refreshToken,
+    });
+    await this.authRepository.save(newAuth);
+
+    return newUser;
   }
 
   generateAccessToken(user: User, socialProvider: AuthProvider): string {

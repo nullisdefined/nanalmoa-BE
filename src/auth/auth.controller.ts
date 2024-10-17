@@ -94,6 +94,7 @@ export class AuthController {
         socialTokens.refresh_token,
         provider,
       );
+
       const accessToken = this.authService.generateAccessToken(user, provider);
 
       return {
