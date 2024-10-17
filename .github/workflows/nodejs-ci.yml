@@ -38,5 +38,6 @@ jobs:
           script: |
             cd /var/www/nestjs-app/nanalmoa-BE
             git pull
+            npm install
             npm run build
             pm2 start dist/main.js --name nanalmoa
