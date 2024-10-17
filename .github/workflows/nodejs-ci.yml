@@ -39,6 +39,15 @@ jobs:
           DEPLOY_DIR="/var/www/nestjs-app/nanalmoa-BE"
           BACKUP_DIR="/var/www/nestjs-app/nanalmoa-BE_backup_$(date +%Y%m%d%H%M%S)"
 
+          # 시스템 정보 출력
+          echo "=== System Information ==="
+          uname -a
+          df -h
+          free -m
+
+          # Git 버전 확인
+          git --version
+
           # 기존 디렉토리 백업
           if [ -d "$DEPLOY_DIR" ]; then
             sudo mv "$DEPLOY_DIR" "$BACKUP_DIR"
@@ -48,13 +57,23 @@ jobs:
           sudo mkdir -p "$DEPLOY_DIR"
           sudo chown -R $USER:$USER "$DEPLOY_DIR"
 
-          # 저장소 클론 (verbose 모드 추가 및 오류 처리)
-          if ! git clone --verbose https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR"; then
+          # 네트워크 연결 테스트
+          echo "=== Network Connectivity Test ==="
+          ping -c 4 github.com
+          curl -I https://github.com
+
+          # 저장소 클론 (verbose 모드 및 shallow clone 사용)
+          echo "=== Cloning Repository ==="
+          if ! GIT_TRACE=1 git clone --verbose --depth 1 https://github.com/nullisdefined/nanalmoa-BE.git "$DEPLOY_DIR" 2>&1 | tee /tmp/git_clone_output.log; then
             echo "Git clone 실패. 오류 메시지:"
-            cat /tmp/git_clone_error.log
+            cat /tmp/git_clone_output.log
             exit 1
           fi
           cd "$DEPLOY_DIR"
+
+          # Git 설정 확인
+          echo "=== Git Configuration ==="
+          git config --list
 
           # Node.js 의존성 설치 및 빌드
           npm ci
