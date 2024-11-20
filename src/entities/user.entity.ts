@@ -47,7 +47,6 @@ export class User {
 
   @Column({
     length: 20,
-    unique: true,
     nullable: true,
     name: 'phone_number',
     default: '',

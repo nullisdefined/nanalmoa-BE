@@ -345,22 +345,35 @@ export class AuthService {
   }
 
   async getKakaoToken(code: string): Promise<KakaoTokenResponseDto> {
-    const tokenUrl = 'https://kauth.kakao.com/oauth/token';
-    const params = {
-      grant_type: 'authorization_code',
-      client_id: this.configService.get('KAKAO_CLIENT_ID'),
-      client_secret: this.configService.get('KAKAO_CLIENT_SECRET'),
-      redirect_uri: this.configService.get('KAKAO_REDIRECT_URI'),
-      code,
-    };
-
     try {
-      const response = await axios.post(tokenUrl, null, { params });
+      const tokenUrl = 'https://kauth.kakao.com/oauth/token';
+
+      const data = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: this.configService.get('KAKAO_CLIENT_ID'),
+        client_secret: this.configService.get('KAKAO_CLIENT_SECRET'),
+        redirect_uri: this.configService.get('KAKAO_REDIRECT_URI'),
+        code,
+      }).toString();
+
+      const response = await axios.post(tokenUrl, data, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      if (!response.data || !response.data.access_token) {
+        throw new UnauthorizedException(
+          '카카오 토큰 응답이 올바르지 않습니다.',
+        );
+      }
+
       return {
         access_token: response.data.access_token,
         refresh_token: response.data.refresh_token,
       };
     } catch (error) {
+      console.error('카카오 토큰 에러:', error.response?.data || error.message);
       throw new UnauthorizedException('카카오 토큰 획득에 실패했습니다.');
     }
   }
