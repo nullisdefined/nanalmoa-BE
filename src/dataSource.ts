@@ -6,6 +6,7 @@ import { Auth } from './entities/auth.entity';
 import { User } from './entities/user.entity';
 import { Category } from './entities/category.entity';
 import { Schedule } from './entities/schedule.entity';
+import { ScheduleRecurring } from './entities/schedule-recurring.entity';
 import { CategorySeeder } from './database/seeds/category.seed';
 import { ScheduleSeeder } from './database/seeds/schedule.seed';
 import { ManagerInvitation } from './entities/manager-invitation.entity';
@@ -38,6 +39,7 @@ export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     GroupSchedule,
     UserGroup,
     UserRoutine,
+    ScheduleRecurring,
   ],
   migrations: [resolve(__dirname, 'migrations', '*.{js,ts}')],
   seeds: [CategorySeeder],

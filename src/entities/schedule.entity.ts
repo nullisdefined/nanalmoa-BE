@@ -7,10 +7,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Category } from './category.entity';
 import { GroupSchedule } from './group-schedule.entity';
 import { User } from './user.entity';
+import { ScheduleRecurring } from './schedule-recurring.entity';
 
 @Entity('schedule')
 export class Schedule {
@@ -49,17 +51,6 @@ export class Schedule {
   @Column({ name: 'is_group_schedule', default: false })
   isGroupSchedule: boolean;
 
-  @Column({
-    name: 'repeat_type',
-    type: 'enum',
-    enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
-    nullable: true,
-  })
-  repeatType: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-
-  @Column({ name: 'repeat_end_date', type: 'timestamp', nullable: true })
-  repeatEndDate?: Date;
-
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -72,19 +63,6 @@ export class Schedule {
   @Column({ name: 'is_recurring', default: false })
   isRecurring: boolean;
 
-  @Column({ name: 'recurring_interval', type: 'int', nullable: true })
-  recurringInterval?: number;
-
-  @Column('int', {
-    array: true,
-    nullable: true,
-    name: 'recurring_days_of_week',
-  })
-  recurringDaysOfWeek: number[];
-
-  @Column({ name: 'recurring_day_of_month', type: 'int', nullable: true })
-  recurringDayOfMonth?: number;
-
-  @Column({ name: 'recurring_month_of_year', type: 'int', nullable: true })
-  recurringMonthOfYear?: number;
+  @OneToOne(() => ScheduleRecurring, (recurring) => recurring.schedule)
+  recurring: ScheduleRecurring;
 }
