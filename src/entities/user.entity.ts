@@ -16,6 +16,7 @@ import { GroupInvitation } from './group-invitation.entity';
 import { GroupSchedule } from './group-schedule.entity';
 import { ManagerInvitation } from './manager-invitation.entity';
 import { ManagerSubordinate } from './manager-subordinate.entity';
+import { UserGroup } from './user-group.entity';
 
 @Entity('user')
 export class User {
@@ -89,11 +90,14 @@ export class User {
     () => ManagerSubordinate,
     (managerSubordinate) => managerSubordinate.manager,
   )
-  manager?: ManagerSubordinate[];
+  managers?: ManagerSubordinate[];
 
   @OneToMany(
     () => ManagerSubordinate,
     (managerSubordinate) => managerSubordinate.subordinate,
   )
-  subordinate?: ManagerSubordinate[];
+  subordinates?: ManagerSubordinate[];
+
+  @OneToMany(() => UserGroup, (userGroup) => userGroup.user)
+  groupMembers?: UserGroup[];
 }

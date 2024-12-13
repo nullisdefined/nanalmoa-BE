@@ -22,11 +22,11 @@ export class ManagerSubordinate {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @ManyToOne(() => User, (user) => user.manager)
+  @ManyToOne(() => User, (user) => user.managers)
   @JoinColumn({ name: 'manager_uuid', referencedColumnName: 'userUuid' })
   manager: User;
 
-  @ManyToOne(() => User, (user) => user.subordinate)
+  @ManyToOne(() => User, (user) => user.subordinates)
   @JoinColumn({ name: 'subordinate_uuid', referencedColumnName: 'userUuid' })
   subordinate: User;
 }
